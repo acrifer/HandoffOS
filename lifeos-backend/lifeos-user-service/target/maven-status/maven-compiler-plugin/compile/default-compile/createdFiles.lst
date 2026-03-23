@@ -1,8 +1,0 @@
-com\lifeos\user\domain\dto\LoginDTO.class
-com\lifeos\user\UserApplication.class
-com\lifeos\user\domain\dto\RegisterDTO.class
-com\lifeos\user\domain\entity\User.class
-com\lifeos\user\mapper\UserMapper.class
-com\lifeos\user\service\impl\UserServiceImpl.class
-com\lifeos\user\service\UserService.class
-com\lifeos\user\controller\UserController.class

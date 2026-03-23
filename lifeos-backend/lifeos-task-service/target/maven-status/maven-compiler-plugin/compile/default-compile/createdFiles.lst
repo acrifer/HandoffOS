@@ -1,8 +1,0 @@
-com\lifeos\task\TaskApplication.class
-com\lifeos\task\mapper\TaskMapper.class
-com\lifeos\task\service\impl\TaskServiceImpl.class
-com\lifeos\task\domain\entity\Task.class
-com\lifeos\task\controller\TaskController.class
-com\lifeos\task\service\TaskService.class
-com\lifeos\task\domain\dto\TaskCreateDTO.class
-com\lifeos\task\domain\dto\TaskUpdateDTO.class

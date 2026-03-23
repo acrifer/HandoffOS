@@ -18,7 +18,11 @@ CREATE TABLE `note_0` (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
   INDEX `idx_review_state`(`review_state` ASC) USING BTREE,
-  INDEX `idx_next_review_at`(`next_review_at` ASC) USING BTREE
+  INDEX `idx_next_review_at`(`next_review_at` ASC) USING BTREE,
+  INDEX `idx_user_create_time`(`user_id` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_user_pinned_update`(`user_id` ASC, `pinned` ASC, `update_time` ASC) USING BTREE,
+  INDEX `idx_user_pinned_create`(`user_id` ASC, `pinned` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_user_review_next`(`user_id` ASC, `review_state` ASC, `next_review_at` ASC) USING BTREE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 DROP TABLE IF EXISTS `note_1`;
@@ -38,7 +42,11 @@ CREATE TABLE `note_1` (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
   INDEX `idx_review_state`(`review_state` ASC) USING BTREE,
-  INDEX `idx_next_review_at`(`next_review_at` ASC) USING BTREE
+  INDEX `idx_next_review_at`(`next_review_at` ASC) USING BTREE,
+  INDEX `idx_user_create_time`(`user_id` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_user_pinned_update`(`user_id` ASC, `pinned` ASC, `update_time` ASC) USING BTREE,
+  INDEX `idx_user_pinned_create`(`user_id` ASC, `pinned` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_user_review_next`(`user_id` ASC, `review_state` ASC, `next_review_at` ASC) USING BTREE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 DROP TABLE IF EXISTS `note_2`;
@@ -58,7 +66,11 @@ CREATE TABLE `note_2` (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
   INDEX `idx_review_state`(`review_state` ASC) USING BTREE,
-  INDEX `idx_next_review_at`(`next_review_at` ASC) USING BTREE
+  INDEX `idx_next_review_at`(`next_review_at` ASC) USING BTREE,
+  INDEX `idx_user_create_time`(`user_id` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_user_pinned_update`(`user_id` ASC, `pinned` ASC, `update_time` ASC) USING BTREE,
+  INDEX `idx_user_pinned_create`(`user_id` ASC, `pinned` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_user_review_next`(`user_id` ASC, `review_state` ASC, `next_review_at` ASC) USING BTREE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 DROP TABLE IF EXISTS `note_3`;
@@ -78,7 +90,11 @@ CREATE TABLE `note_3` (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
   INDEX `idx_review_state`(`review_state` ASC) USING BTREE,
-  INDEX `idx_next_review_at`(`next_review_at` ASC) USING BTREE
+  INDEX `idx_next_review_at`(`next_review_at` ASC) USING BTREE,
+  INDEX `idx_user_create_time`(`user_id` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_user_pinned_update`(`user_id` ASC, `pinned` ASC, `update_time` ASC) USING BTREE,
+  INDEX `idx_user_pinned_create`(`user_id` ASC, `pinned` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_user_review_next`(`user_id` ASC, `review_state` ASC, `next_review_at` ASC) USING BTREE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 DROP TABLE IF EXISTS `task`;
@@ -94,7 +110,10 @@ CREATE TABLE `task` (
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
-  INDEX `idx_source_note_id`(`source_note_id` ASC) USING BTREE
+  INDEX `idx_source_note_id`(`source_note_id` ASC) USING BTREE,
+  INDEX `idx_task_user_create_time`(`user_id` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_task_user_status`(`user_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_task_user_status_source_note`(`user_id` ASC, `status` ASC, `source_note_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 3 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 DROP TABLE IF EXISTS `ai_workflow_job`;
@@ -113,7 +132,9 @@ CREATE TABLE `ai_workflow_job` (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_ai_job_user_time`(`user_id` ASC, `create_time` ASC) USING BTREE,
   INDEX `idx_ai_job_note_time`(`note_id` ASC, `create_time` ASC) USING BTREE,
-  INDEX `idx_ai_job_type_status`(`job_type` ASC, `status` ASC) USING BTREE
+  INDEX `idx_ai_job_type_status`(`job_type` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_ai_job_user_note_time`(`user_id` ASC, `note_id` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_ai_job_user_type_time`(`user_id` ASC, `job_type` ASC, `create_time` ASC) USING BTREE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 DROP TABLE IF EXISTS `user`;
@@ -137,7 +158,9 @@ CREATE TABLE `user_behavior` (
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_event_id`(`event_id` ASC) USING BTREE,
-  INDEX `idx_user_id_action`(`user_id` ASC, `action_type` ASC) USING BTREE
+  INDEX `idx_user_id_action`(`user_id` ASC, `action_type` ASC) USING BTREE,
+  INDEX `idx_user_id_time`(`user_id` ASC, `create_time` ASC) USING BTREE,
+  INDEX `idx_user_id_action_time`(`user_id` ASC, `action_type` ASC, `create_time` ASC) USING BTREE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;

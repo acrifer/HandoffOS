@@ -49,72 +49,30 @@ public interface BehaviorMapper extends BaseMapper<UserBehavior> {
             @Param("startTime") LocalDateTime startTime);
 
     @Select("""
-            SELECT COUNT(*)
-            FROM (
-                SELECT review_state, next_review_at
-                FROM note_0
-                WHERE user_id = #{userId}
-                UNION ALL
-                SELECT review_state, next_review_at
-                FROM note_1
-                WHERE user_id = #{userId}
-                UNION ALL
-                SELECT review_state, next_review_at
-                FROM note_2
-                WHERE user_id = #{userId}
-                UNION ALL
-                SELECT review_state, next_review_at
-                FROM note_3
-                WHERE user_id = #{userId}
-            ) notes
-            WHERE review_state IN ('REVIEW', 'EVERGREEN')
+            SELECT
+              COALESCE((SELECT COUNT(*) FROM note_0 WHERE user_id = #{userId} AND review_state IN ('REVIEW', 'EVERGREEN')), 0) +
+              COALESCE((SELECT COUNT(*) FROM note_1 WHERE user_id = #{userId} AND review_state IN ('REVIEW', 'EVERGREEN')), 0) +
+              COALESCE((SELECT COUNT(*) FROM note_2 WHERE user_id = #{userId} AND review_state IN ('REVIEW', 'EVERGREEN')), 0) +
+              COALESCE((SELECT COUNT(*) FROM note_3 WHERE user_id = #{userId} AND review_state IN ('REVIEW', 'EVERGREEN')), 0)
             """)
     Long countNotesToReview(@Param("userId") Long userId);
 
     @Select("""
-            SELECT COUNT(*)
-            FROM (
-                SELECT create_time
-                FROM note_0
-                WHERE user_id = #{userId}
-                UNION ALL
-                SELECT create_time
-                FROM note_1
-                WHERE user_id = #{userId}
-                UNION ALL
-                SELECT create_time
-                FROM note_2
-                WHERE user_id = #{userId}
-                UNION ALL
-                SELECT create_time
-                FROM note_3
-                WHERE user_id = #{userId}
-            ) notes
-            WHERE create_time >= #{startTime}
+            SELECT
+              COALESCE((SELECT COUNT(*) FROM note_0 WHERE user_id = #{userId} AND create_time >= #{startTime}), 0) +
+              COALESCE((SELECT COUNT(*) FROM note_1 WHERE user_id = #{userId} AND create_time >= #{startTime}), 0) +
+              COALESCE((SELECT COUNT(*) FROM note_2 WHERE user_id = #{userId} AND create_time >= #{startTime}), 0) +
+              COALESCE((SELECT COUNT(*) FROM note_3 WHERE user_id = #{userId} AND create_time >= #{startTime}), 0)
             """)
     Long countNotesCreatedSince(@Param("userId") Long userId,
             @Param("startTime") LocalDateTime startTime);
 
     @Select("""
-            SELECT COUNT(*)
-            FROM (
-                SELECT summary, tags
-                FROM note_0
-                WHERE user_id = #{userId}
-                UNION ALL
-                SELECT summary, tags
-                FROM note_1
-                WHERE user_id = #{userId}
-                UNION ALL
-                SELECT summary, tags
-                FROM note_2
-                WHERE user_id = #{userId}
-                UNION ALL
-                SELECT summary, tags
-                FROM note_3
-                WHERE user_id = #{userId}
-            ) notes
-            WHERE summary IS NULL OR summary = '' OR tags IS NULL OR tags = ''
+            SELECT
+              COALESCE((SELECT COUNT(*) FROM note_0 WHERE user_id = #{userId} AND (summary IS NULL OR summary = '' OR tags IS NULL OR tags = '')), 0) +
+              COALESCE((SELECT COUNT(*) FROM note_1 WHERE user_id = #{userId} AND (summary IS NULL OR summary = '' OR tags IS NULL OR tags = '')), 0) +
+              COALESCE((SELECT COUNT(*) FROM note_2 WHERE user_id = #{userId} AND (summary IS NULL OR summary = '' OR tags IS NULL OR tags = '')), 0) +
+              COALESCE((SELECT COUNT(*) FROM note_3 WHERE user_id = #{userId} AND (summary IS NULL OR summary = '' OR tags IS NULL OR tags = '')), 0)
             """)
     Long countAiInbox(@Param("userId") Long userId);
 

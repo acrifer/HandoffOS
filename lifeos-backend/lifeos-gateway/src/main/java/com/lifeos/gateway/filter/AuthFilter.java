@@ -5,23 +5,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifeos.common.response.Result;
 import com.lifeos.common.utils.JwtUtil;
 import io.jsonwebtoken.Claims;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.stereotype.Component;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import jakarta.annotation.Resource;
+import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -35,16 +35,13 @@ public class AuthFilter implements GlobalFilter, Ordered {
     private StringRedisTemplate stringRedisTemplate;
 
     // 白名单路径，不需要登录即可访问
-    private static final List<String> whiteList = new ArrayList<>();
-
-    static {
-        whiteList.add("/api/user/login");
-        whiteList.add("/api/user/register");
-        whiteList.add("/swagger-ui.html");
-        whiteList.add("/swagger-ui/**");
-        whiteList.add("/v3/api-docs/**");
-        whiteList.add("/service-docs/**");
-    }
+    private static final List<String> WHITE_LIST = Arrays.asList(
+            "/api/user/login",
+            "/api/user/register",
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/v3/api-docs/**",
+            "/service-docs/**");
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -52,10 +49,8 @@ public class AuthFilter implements GlobalFilter, Ordered {
         ServerHttpResponse response = exchange.getResponse();
         String path = request.getURI().getPath();
 
-        log.info("Gateway Filter: Path=" + path);
-
         // 1. 检查是否在白名单中
-        for (String whitePath : whiteList) {
+        for (String whitePath : WHITE_LIST) {
             if (antPathMatcher.match(whitePath, path)) {
                 return chain.filter(exchange);
             }
@@ -79,7 +74,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
 
         // 4. 从 Redis 校验 Token 是否有效
         String redisToken = stringRedisTemplate.opsForValue().get("token:" + userId);
-        if (redisToken == null || !redisToken.equals(jwtToken)) {
+        if (!jwtToken.equals(redisToken)) {
             return authFailed(response, "Token expired or logged out");
         }
 
@@ -110,6 +105,6 @@ public class AuthFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return -1; // 优先级最高
+        return -1;
     }
 }

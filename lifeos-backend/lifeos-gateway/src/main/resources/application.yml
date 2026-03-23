@@ -9,86 +9,87 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
   cloud:
-    nacos:
-      discovery:
-        server-addr: ${NACOS_SERVER_ADDR}
     gateway:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "*"
-            allowedHeaders: "*"
+            allowedOriginPatterns: "*"
             allowedMethods:
               - GET
               - POST
               - PUT
               - DELETE
               - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
       discovery:
         locator:
-          enabled: true # 开启从注册中心动态创建路由的功能
+          enabled: true
           lower-case-service-id: true
       routes:
-        - id: lifeos-user-service-docs
+        - id: user-service-docs
           uri: lb://lifeos-user-service
           predicates:
             - Path=/service-docs/user
           filters:
             - SetPath=/v3/api-docs
-        - id: lifeos-task-service-docs
+        - id: task-service-docs
           uri: lb://lifeos-task-service
           predicates:
             - Path=/service-docs/task
           filters:
             - SetPath=/v3/api-docs
-        - id: lifeos-note-service-docs
+        - id: note-service-docs
           uri: lb://lifeos-note-service
           predicates:
             - Path=/service-docs/note
           filters:
             - SetPath=/v3/api-docs
-        - id: lifeos-ai-service-docs
+        - id: ai-service-docs
           uri: lb://lifeos-ai-service
           predicates:
             - Path=/service-docs/ai
           filters:
             - SetPath=/v3/api-docs
-        - id: lifeos-behavior-service-docs
+        - id: behavior-service-docs
           uri: lb://lifeos-behavior-service
           predicates:
             - Path=/service-docs/behavior
           filters:
             - SetPath=/v3/api-docs
-        - id: lifeos-user-service
+        - id: user-service
           uri: lb://lifeos-user-service
           predicates:
             - Path=/api/user/**
           filters:
             - StripPrefix=1
-        - id: lifeos-task-service
+        - id: task-service
           uri: lb://lifeos-task-service
           predicates:
             - Path=/api/task/**
           filters:
             - StripPrefix=1
-        - id: lifeos-note-service
+        - id: note-service
           uri: lb://lifeos-note-service
           predicates:
             - Path=/api/note/**
           filters:
             - StripPrefix=1
-        - id: lifeos-ai-service
+        - id: ai-service
           uri: lb://lifeos-ai-service
           predicates:
             - Path=/api/ai/**
           filters:
             - StripPrefix=1
-        - id: lifeos-behavior-service
+        - id: behavior-service
           uri: lb://lifeos-behavior-service
           predicates:
             - Path=/api/behavior/**
           filters:
             - StripPrefix=1
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR}
 
 springdoc:
   swagger-ui:

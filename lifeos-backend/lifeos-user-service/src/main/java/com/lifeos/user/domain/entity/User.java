@@ -20,5 +20,7 @@ public class User {
 
     private String email;
 
+    private Boolean enabled;
+
     private Date createTime;
 }

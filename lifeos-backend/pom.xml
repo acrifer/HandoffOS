@@ -13,6 +13,7 @@
         <module>lifeos-common</module>
         <module>lifeos-api</module>
         <module>lifeos-gateway</module>
+        <module>lifeos-admin-service</module>
         <module>lifeos-user-service</module>
         <module>lifeos-note-service</module>
         <module>lifeos-task-service</module>

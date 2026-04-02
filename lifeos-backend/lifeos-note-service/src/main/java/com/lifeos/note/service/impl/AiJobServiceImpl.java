@@ -36,6 +36,17 @@ import java.util.UUID;
 
 @Service
 @Slf4j
+/**
+ * 笔记侧 AI 任务桥接服务。
+ *
+ * 它在整条 AI 链路中的职责是：
+ * 1. 接收笔记服务发起的 AI 请求
+ * 2. 先把任务记录写到 ai_workflow_job 表
+ * 3. 再通过 RocketMQ 把任务投递给 AI 服务
+ * 4. AI 服务完成后，再把结果回写到笔记、任务或行为统计侧
+ *
+ * 这样拆分后，前端只需要轮询任务状态，不需要等待模型同步返回。
+ */
 public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflowJob> implements AiJobService {
 
     private static final Set<String> NOTE_JOB_TYPES = Set.of(
@@ -115,6 +126,8 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
         }
 
         String normalizedStatus = request.getStatus().trim().toUpperCase(Locale.ROOT);
+        // AI worker 回调可能因为网络重试而重复投递。
+        // 一旦任务已经成功，就直接忽略后续重复成功回调，避免重复回写。
         if (AiJobStatus.SUCCESS.equals(job.getStatus())) {
             return;
         }
@@ -139,6 +152,8 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
     }
 
     private AiAsyncJobDTO createAndDispatchJob(AiAsyncJobCommand command) {
+        // 先落库再发 MQ，避免出现“消息发出去了，但数据库里没有任务记录”的问题。
+        // 这样即使 MQ 发送失败，前端和后台也能看到一条失败任务记录。
         AiWorkflowJob job = new AiWorkflowJob();
         job.setId(IdWorker.getId());
         job.setUserId(command.getUserId());
@@ -227,6 +242,10 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
             return;
         }
 
+        // 不同任务类型的成功结果，会触发不同的后处理逻辑：
+        // - SUMMARY：回写 note.summary
+        // - ORGANIZE：记录一次整理行为
+        // - EXTRACT_TASKS：记录一次任务提取行为，真正任务创建由前端或后续流程决定
         if (AiJobType.SUMMARY.equals(job.getJobType()) && StringUtils.hasText(result.getSummary())) {
             LambdaUpdateWrapper<Note> wrapper = new LambdaUpdateWrapper<>();
             wrapper.eq(Note::getId, job.getNoteId())

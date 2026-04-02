@@ -4,6 +4,20 @@
     "files.encoding": "utf8",
     "files.autoGuessEncoding": false,
     "files.eol": "\n",
+    "editor.tokenColorCustomizations": {
+        "textMateRules": [
+            {
+                "scope": [
+                    "comment",
+                    "punctuation.definition.comment"
+                ],
+                "settings": {
+                    "foreground": "#8ECDF5",
+                    "fontStyle": "italic"
+                }
+            }
+        ]
+    },
     "[powershell]": {
         "files.eol": "\r\n"
     }

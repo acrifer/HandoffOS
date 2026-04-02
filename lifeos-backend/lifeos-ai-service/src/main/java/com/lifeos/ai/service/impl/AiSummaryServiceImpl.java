@@ -29,6 +29,19 @@ import java.util.Set;
 
 @Service
 @Slf4j
+/**
+ * AI 服务侧的执行器。
+ *
+ * 这里负责真正调用大模型，生成：
+ * - 摘要
+ * - 整理建议
+ * - 任务提取结果
+ * - 周回顾内容
+ *
+ * 同时它还承担一个很重要的职责：
+ * 当本地环境没有配置真实 API Key 时，返回稳定的 mock/fallback 结果，
+ * 保证整条异步 AI 链路在开发环境下仍然可以完整跑通。
+ */
 public class AiSummaryServiceImpl implements AiSummaryService {
 
     private static final String STATUS_SUCCESS = "SUCCESS";
@@ -94,6 +107,8 @@ public class AiSummaryServiceImpl implements AiSummaryService {
     public AiWeeklyReviewResultDTO generateWeeklyReview(AiAsyncJobCommand command) {
         try {
             if (!StringUtils.hasText(aiProperties.getApiKey())) {
+                // 本地开发或演示环境通常没有真实模型密钥，
+                // 这里直接返回可预测的 mock 结果，让前后端联调不被外部依赖卡住。
                 return buildMockWeeklyReview(command);
             }
 
@@ -183,6 +198,8 @@ public class AiSummaryServiceImpl implements AiSummaryService {
     }
 
     private String requestText(Map<String, Object> requestBody) {
+        // 每次按当前配置动态创建客户端，保证服务本身保持无状态，
+        // 切换模型地址或密钥时不需要维护额外连接状态。
         RestClient client = RestClient.builder()
                 .baseUrl(aiProperties.getBaseUrl())
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + aiProperties.getApiKey())
@@ -284,6 +301,8 @@ public class AiSummaryServiceImpl implements AiSummaryService {
     }
 
     private AiTaskExtractionResult buildMockTaskExtractionResult(AiSummaryCommand command) {
+        // fallback 提取逻辑会尽量把笔记中的行动句转换成任务，
+        // 这样即使没接真实模型，任务提取页面也能表现出完整效果。
         AiTaskExtractionResult result = new AiTaskExtractionResult();
         result.setNoteId(command.getNoteId());
 

@@ -30,12 +30,23 @@
 - `lifeos-behavior-service`
 - `lifeos-gateway`
 - `lifeos-web`
+- `lifeos-admin-service`
+- `lifeos-admin-web`
 
 ## Access
 - Frontend: `http://127.0.0.1:5173`
+- Admin: `http://127.0.0.1:5174`
 - Gateway: `http://127.0.0.1:8080`
 - Swagger: `http://127.0.0.1:8080/swagger-ui.html`
 - Dockerized MySQL host port: `127.0.0.1:13306`
+
+## Admin Console
+- Admin UI route: `http://127.0.0.1:5174`
+- Admin API route: `/admin-api/**`
+- Admin Swagger route: `http://127.0.0.1:8080/service-docs/admin`
+- Seed admin account comes from `.env`:
+  - `LIFEOS_ADMIN_DEFAULT_USERNAME`
+  - `LIFEOS_ADMIN_DEFAULT_PASSWORD`
 
 ## Notes
 - Container-to-container communication uses internal hostnames such as `mysql`, `redis`, `nacos`, and `rocketmq-namesrv`.

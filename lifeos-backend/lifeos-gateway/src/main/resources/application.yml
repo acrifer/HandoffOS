@@ -57,6 +57,12 @@ spring:
             - Path=/service-docs/behavior
           filters:
             - SetPath=/v3/api-docs
+        - id: admin-service-docs
+          uri: lb://lifeos-admin-service
+          predicates:
+            - Path=/service-docs/admin
+          filters:
+            - SetPath=/v3/api-docs
         - id: user-service
           uri: lb://lifeos-user-service
           predicates:
@@ -87,6 +93,12 @@ spring:
             - Path=/api/behavior/**
           filters:
             - StripPrefix=1
+        - id: admin-service
+          uri: lb://lifeos-admin-service
+          predicates:
+            - Path=/admin-api/**
+          filters:
+            - StripPrefix=1
     nacos:
       discovery:
         server-addr: ${NACOS_SERVER_ADDR}
@@ -106,3 +118,5 @@ springdoc:
         url: /service-docs/ai
       - name: 行为服务
         url: /service-docs/behavior
+      - name: 管理后台服务
+        url: /service-docs/admin

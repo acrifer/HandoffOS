@@ -33,6 +33,19 @@ import java.util.UUID;
 
 @Service
 @Slf4j
+/**
+ * 笔记领域主服务。
+ *
+ * 这里串起了用户在“知识沉淀”里的核心动作：
+ * - 创建/修改/删除笔记
+ * - 搜索、置顶、复习状态维护
+ * - 触发 AI 总结、整理、任务提取
+ * - 发送行为埋点事件
+ *
+ * 代码分层上有两个关键点：
+ * 1. 笔记读写本身是同步事务，尽快给前端返回结果
+ * 2. 行为埋点和 AI 处理是异步链路，失败时不阻塞主流程
+ */
 public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements NoteService {
 
     private static final String SORT_UPDATED = "updated";
@@ -52,6 +65,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
 
     @Override
     public Long createNote(Long userId, NoteCreateDTO createDTO) {
+        // 创建笔记先落库，再异步记录行为事件。
+        // 即使行为事件发送失败，也不能影响用户正常记笔记。
         Note note = new Note();
         note.setUserId(userId);
         note.setTitle(createDTO.getTitle());
@@ -74,6 +89,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         wrapper.eq(Note::getId, updateDTO.getId())
                 .eq(Note::getUserId, userId);
 
+        // 更新采用“按字段打补丁”的方式：
+        // 前端传了什么字段，就更新什么字段，避免把未传字段误覆盖为空。
         boolean hasUpdates = false;
         if (updateDTO.getTitle() != null) {
             wrapper.set(Note::getTitle, updateDTO.getTitle());
@@ -150,6 +167,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
         wrapper.eq(Note::getUserId, userId);
 
         if (query != null) {
+            // 搜索条件全部下推到数据库，
+            // 这样既能利用索引，也能让分片路由继续以 user_id 为主维度裁剪范围。
             applyKeywordFilter(wrapper, query.getKeyword());
             applyTagFilter(wrapper, query.getTags());
             if (query.getPinned() != null) {
@@ -213,6 +232,8 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
 
     @Override
     public AiAsyncJobDTO generateSummary(Long userId, Long noteId) {
+        // AI 请求统一改造成异步任务：
+        // 当前接口只负责创建任务，真正的模型调用在后台 worker 中完成。
         return aiJobService.submitNoteJob(userId, noteId, AiJobType.SUMMARY);
     }
 
@@ -333,6 +354,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements No
 
     private void recordBehaviorEvent(Long userId, String actionType, Long targetId) {
         try {
+            // 行为埋点只是辅助能力，不能让主业务因为 MQ 抖动而失败。
             BehaviorEventCommand command = new BehaviorEventCommand();
             command.setEventId(UUID.randomUUID().toString());
             command.setUserId(userId);

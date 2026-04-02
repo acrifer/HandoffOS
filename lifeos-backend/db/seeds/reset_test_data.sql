@@ -2,6 +2,7 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 TRUNCATE TABLE `user_behavior`;
+TRUNCATE TABLE `admin_audit_log`;
 TRUNCATE TABLE `ai_workflow_job`;
 TRUNCATE TABLE `task`;
 TRUNCATE TABLE `note_0`;
@@ -13,12 +14,12 @@ TRUNCATE TABLE `user`;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- Default password for all seeded users: Pass123456
-INSERT INTO `user` (`id`, `username`, `password`, `email`, `create_time`) VALUES
-  (1, 'liwen_pm', 'Pass123456', 'liwen.pm@test.local', '2026-03-01 09:10:00'),
-  (2, 'zhouyi_dev', 'Pass123456', 'zhouyi.dev@test.local', '2026-03-02 10:20:00'),
-  (3, 'heqing_fit', 'Pass123456', 'heqing.fit@test.local', '2026-03-02 21:05:00'),
-  (4, 'susu_creator', 'Pass123456', 'susu.creator@test.local', '2026-03-03 14:00:00'),
-  (5, 'chenyu_grad', 'Pass123456', 'chenyu.grad@test.local', '2026-03-04 08:30:00');
+INSERT INTO `user` (`id`, `username`, `password`, `email`, `enabled`, `create_time`) VALUES
+  (1, 'liwen_pm', 'Pass123456', 'liwen.pm@test.local', 1, '2026-03-01 09:10:00'),
+  (2, 'zhouyi_dev', 'Pass123456', 'zhouyi.dev@test.local', 1, '2026-03-02 10:20:00'),
+  (3, 'heqing_fit', 'Pass123456', 'heqing.fit@test.local', 1, '2026-03-02 21:05:00'),
+  (4, 'susu_creator', 'Pass123456', 'susu.creator@test.local', 1, '2026-03-03 14:00:00'),
+  (5, 'chenyu_grad', 'Pass123456', 'chenyu.grad@test.local', 1, '2026-03-04 08:30:00');
 
 INSERT INTO `note_1` (`id`, `user_id`, `title`, `content`, `tags`, `summary`, `pinned`, `review_state`, `next_review_at`, `last_reviewed_at`, `create_time`, `update_time`) VALUES
   (1101, 1, '四月产品发布清单', '梳理发布前需要完成的文案、引导页截图、站内公告和回滚方案。重点确保注册流程、欢迎页和通知文案在同一版本内上线。', '发布,项目管理,协作', '一份围绕四月版本上线的执行清单，重点是文案、截图和回滚准备。', 1, 'REVIEW', '2026-03-14 10:00:00', '2026-03-12 09:00:00', '2026-03-08 09:00:00', '2026-03-12 10:30:00'),

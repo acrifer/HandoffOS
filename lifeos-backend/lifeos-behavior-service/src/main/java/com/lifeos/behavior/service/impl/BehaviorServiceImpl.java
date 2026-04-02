@@ -30,6 +30,17 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+/**
+ * 行为统计服务。
+ *
+ * 这个服务不是直接承载业务操作，而是把各个服务发来的行为事件沉淀下来，
+ * 再聚合成 Dashboard 需要的统计结果。
+ *
+ * 这样做的好处是：
+ * - 前端取一个 Dashboard 接口即可
+ * - 各业务服务只负责发事件，不负责自己做复杂统计
+ * - 统计逻辑集中在一个地方，后续更容易扩展
+ */
 public class BehaviorServiceImpl extends ServiceImpl<BehaviorMapper, UserBehavior> implements BehaviorService {
 
     private static final String FINISH_TASK = "FINISH_TASK";
@@ -51,12 +62,16 @@ public class BehaviorServiceImpl extends ServiceImpl<BehaviorMapper, UserBehavio
         try {
             this.save(behavior);
         } catch (DuplicateKeyException ex) {
+            // MQ 消费端可能收到重复消息。
+            // 这里依赖 eventId 唯一约束实现幂等，重复事件直接忽略即可。
             log.info("Ignored duplicate behavior event {}", behavior.getEventId());
         }
     }
 
     @Override
     public DashboardStatsDTO getDashboardStats(Long userId) {
+        // Dashboard 需要的统计项比较多，这里一次性聚合成单个 DTO 返回给前端，
+        // 避免前端自己拼多个接口。
         List<DashboardNoteRow> recentNotes = baseMapper.selectRecentNotes(userId, 60);
 
         DashboardStatsDTO stats = new DashboardStatsDTO();

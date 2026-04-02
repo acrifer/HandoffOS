@@ -49,17 +49,25 @@ public class JwtUtil {
      * Generate token
      */
     public static String generateToken(Long userId, String username) {
+        return generateToken(userId, username, Map.of());
+    }
+
+    public static String generateToken(Long userId, String username, Map<String, Object> claims) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + EXPIRATION_TIME);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .setSubject(String.valueOf(userId))
                 .setId(UUID.randomUUID().toString())
                 .claim("username", username)
                 .setIssuedAt(now)
-                .setExpiration(expiration)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
+                .setExpiration(expiration);
+
+        for (Map.Entry<String, Object> entry : claims.entrySet()) {
+            builder.claim(entry.getKey(), entry.getValue());
+        }
+
+        return builder.signWith(getSigningKey(), SignatureAlgorithm.HS256).compact();
     }
 
     /**

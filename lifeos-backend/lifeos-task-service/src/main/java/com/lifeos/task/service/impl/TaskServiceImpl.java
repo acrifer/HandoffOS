@@ -22,10 +22,28 @@ import java.util.UUID;
 
 @Service
 @Slf4j
+/**
+ * 任务主流程服务。
+ *
+ * 任务在项目里承担两个角色：
+ * 1. 直接作为待办事项管理
+ * 2. 作为“从笔记中提炼出的可执行动作”落地
+ *
+ * 这里的关键实现有两块：
+ * - 列表查询做 Redis 快照缓存，减少频繁读取数据库
+ * - 任务完成后发行为事件，让 Dashboard 能统计完成情况
+ */
 public class TaskServiceImpl extends ServiceImpl<TaskMapper, Task> implements TaskService {
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    // ==================== Redis 作用：任务列表缓存 ====================
+    // Redis 在任务服务里只做“用户任务列表快照缓存”。
+    // 不做单条 task 的细粒度缓存，而是采用：
+    // - 读：整列表命中 Redis
+    // - 写：统一删整包缓存
+    // 这样实现简单，也更符合当前业务规模。
+    // ===============================================================
 
     @Resource
     private RocketMQTemplate rocketMQTemplate;
@@ -45,7 +63,9 @@ public class TaskServiceImpl extends ServiceImpl<TaskMapper, Task> implements Ta
 
         this.save(task);
 
-        // Clear Redis cache
+        // ===== Redis 失效：user:task:list:* =====
+        // 任务列表缓存是按用户整体缓存，任何写操作都直接整包失效。
+        // Redis 在这里的作用是减少“同一用户频繁打开任务页”时的数据库查询次数。
         clearUserTaskCache(userId);
         if (createDTO.getSourceNoteId() != null) {
             recordBehaviorEvent(userId, "EXTRACT_TASK_FROM_NOTE", createDTO.getSourceNoteId());
@@ -78,7 +98,7 @@ public class TaskServiceImpl extends ServiceImpl<TaskMapper, Task> implements Ta
 
         this.updateById(task);
 
-        // Clear Redis cache
+        // 任务内容更新后，用户任务列表缓存需要立即失效。
         clearUserTaskCache(userId);
     }
 
@@ -88,7 +108,8 @@ public class TaskServiceImpl extends ServiceImpl<TaskMapper, Task> implements Ta
         wrapper.eq(Task::getId, taskId).eq(Task::getUserId, userId);
 
         if (this.remove(wrapper)) {
-            // Clear Redis cache
+            // ===== Redis 失效：user:task:list:* =====
+            // 删除任务后，Redis 里的整包列表快照已经过时，必须一起删掉。
             clearUserTaskCache(userId);
         }
     }
@@ -98,6 +119,10 @@ public class TaskServiceImpl extends ServiceImpl<TaskMapper, Task> implements Ta
         String cacheKey = TASK_LIST_KEY_PREFIX + userId;
         String cachedList = stringRedisTemplate.opsForValue().get(cacheKey);
 
+        // ===== Redis 读取：user:task:list:* =====
+        // 这里故意使用粗粒度缓存：
+        // 不做单条 task 的精细缓存，避免多处更新时维护成本过高。
+        // Redis 的目标是“让列表页更快”，不是把任务服务完全做成缓存驱动。
         if (cachedList != null) {
             return JSON.parseArray(cachedList, Task.class);
         }
@@ -107,7 +132,9 @@ public class TaskServiceImpl extends ServiceImpl<TaskMapper, Task> implements Ta
 
         List<Task> tasks = this.list(wrapper);
 
-        // Set into Redis, valid for 1 hour
+        // ===== Redis 写入：user:task:list:* =====
+        // 任务列表读取相对频繁，缓存 1 小时；写操作会主动删缓存。
+        // 因为有显式失效逻辑，所以这里的 1 小时更像兜底过期时间，而不是唯一一致性手段。
         stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(tasks), 1, TimeUnit.HOURS);
 
         return tasks;
@@ -115,6 +142,7 @@ public class TaskServiceImpl extends ServiceImpl<TaskMapper, Task> implements Ta
 
     @Override
     public void completeTask(Long userId, Long taskId) {
+        // 完成任务复用 updateTask，保证缓存失效逻辑只维护一套。
         Task task = getOwnedTask(userId, taskId);
         TaskUpdateDTO updateDTO = new TaskUpdateDTO();
         updateDTO.setId(taskId);
@@ -127,6 +155,8 @@ public class TaskServiceImpl extends ServiceImpl<TaskMapper, Task> implements Ta
     }
 
     private void clearUserTaskCache(Long userId) {
+        // ===== Redis 统一删缓存入口 =====
+        // 统一从这里删除 Redis 缓存，避免各个写操作散落不同 key 规则。
         stringRedisTemplate.delete(TASK_LIST_KEY_PREFIX + userId);
     }
 

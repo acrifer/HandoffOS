@@ -34,6 +34,11 @@ const router = createRouter({
       component: () => import('../views/ai/index.vue')
     },
     {
+      path: '/skill',
+      name: 'skill',
+      component: () => import('../views/skill/index.vue')
+    },
+    {
       path: '/user',
       name: 'user',
       component: () => import('../views/user/index.vue')

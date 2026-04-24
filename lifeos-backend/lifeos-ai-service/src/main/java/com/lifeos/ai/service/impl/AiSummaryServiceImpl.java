@@ -11,6 +11,8 @@ import com.lifeos.api.ai.dto.AiSummaryResult;
 import com.lifeos.api.ai.dto.AiTaskExtractionResult;
 import com.lifeos.api.ai.dto.AiTaskSuggestionDTO;
 import com.lifeos.api.ai.dto.AiWeeklyReviewResultDTO;
+import com.lifeos.api.ai.dto.HandoffSkillResultDTO;
+import com.lifeos.api.ai.dto.HandoffSkillSourceDTO;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -124,6 +126,47 @@ public class AiSummaryServiceImpl implements AiSummaryService {
         } catch (Exception ex) {
             log.warn("Failed to build weekly review for user {}", command.getUserId(), ex);
             return buildMockWeeklyReview(command);
+        }
+    }
+
+    @Override
+    public HandoffSkillResultDTO distillHandoffSkill(AiAsyncJobCommand command) {
+        try {
+            if (!StringUtils.hasText(aiProperties.getApiKey())) {
+                return buildMockHandoffSkill(command);
+            }
+            String response = requestTextJson(buildHandoffSkillPrompt(command));
+            JsonNode root = objectMapper.readTree(stripMarkdownCodeFence(response));
+            HandoffSkillResultDTO result = new HandoffSkillResultDTO();
+            HandoffSkillResultDTO fallback = buildMockHandoffSkill(command);
+            result.setRoleBoundaries(readStringList(root.path("roleBoundaries"), fallback.getRoleBoundaries()));
+            result.setWorkPrinciples(readStringList(root.path("workPrinciples"), fallback.getWorkPrinciples()));
+            result.setDecisionRules(readStringList(root.path("decisionRules"), fallback.getDecisionRules()));
+            result.setWorkflowChecklists(readStringList(root.path("workflowChecklists"), fallback.getWorkflowChecklists()));
+            result.setCommunicationStyle(readStringList(root.path("communicationStyle"), fallback.getCommunicationStyle()));
+            result.setRiskWarnings(readStringList(root.path("riskWarnings"), fallback.getRiskWarnings()));
+            result.setHandoffQuestions(readStringList(root.path("handoffQuestions"), fallback.getHandoffQuestions()));
+            result.setCitations(readStringList(root.path("citations"), fallback.getCitations()));
+            return result;
+        } catch (Exception ex) {
+            log.warn("Failed to distill handoff skill {}", command.getSkillId(), ex);
+            return buildMockHandoffSkill(command);
+        }
+    }
+
+    @Override
+    public String answerHandoffSkillQuestion(AiAsyncJobCommand command) {
+        try {
+            if (!StringUtils.hasText(aiProperties.getApiKey())) {
+                return buildMockHandoffAnswer(command);
+            }
+            return requestText(buildChatRequest(
+                    List.of(
+                            Map.of("role", "system", "content", "You answer as a team handoff assistant in concise Chinese. Do not impersonate a real person."),
+                            Map.of("role", "user", "content", buildHandoffAskPrompt(command)))));
+        } catch (Exception ex) {
+            log.warn("Failed to answer handoff skill question {}", command.getSkillId(), ex);
+            return buildMockHandoffAnswer(command);
         }
     }
 
@@ -291,6 +334,52 @@ public class AiSummaryServiceImpl implements AiSummaryService {
         return prompt.toString();
     }
 
+    private String buildHandoffSkillPrompt(AiAsyncJobCommand command) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Return valid JSON only with keys roleBoundaries, workPrinciples, decisionRules, ")
+                .append("workflowChecklists, communicationStyle, riskWarnings, handoffQuestions, citations.\n")
+                .append("Each key must be an array of concise Chinese strings. Build a project/role handoff skill, ")
+                .append("not a personal clone or persona.\n")
+                .append("Skill name: ").append(safeText(command.getSkillName())).append('\n')
+                .append("Role description: ").append(safeText(command.getRoleDescription())).append('\n')
+                .append("Sources:\n");
+        appendSources(prompt, command.getSkillSources(), 1800);
+        return prompt.toString();
+    }
+
+    private String buildHandoffAskPrompt(AiAsyncJobCommand command) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Answer the question using the handoff skill and sources below. ")
+                .append("Give concrete next steps and call out uncertainty when sources are insufficient.\n")
+                .append("Skill name: ").append(safeText(command.getSkillName())).append('\n')
+                .append("Role description: ").append(safeText(command.getRoleDescription())).append('\n')
+                .append("Question: ").append(safeText(command.getQuestion())).append('\n')
+                .append("Distilled skill:\n")
+                .append("Role boundaries: ").append(command.getHandoffSkill() == null ? "" : command.getHandoffSkill().getRoleBoundaries()).append('\n')
+                .append("Work principles: ").append(command.getHandoffSkill() == null ? "" : command.getHandoffSkill().getWorkPrinciples()).append('\n')
+                .append("Decision rules: ").append(command.getHandoffSkill() == null ? "" : command.getHandoffSkill().getDecisionRules()).append('\n')
+                .append("Workflow checklists: ").append(command.getHandoffSkill() == null ? "" : command.getHandoffSkill().getWorkflowChecklists()).append('\n')
+                .append("Sources:\n");
+        appendSources(prompt, command.getSkillSources(), 900);
+        return prompt.toString();
+    }
+
+    private void appendSources(StringBuilder prompt, List<HandoffSkillSourceDTO> sources, int maxLength) {
+        if (sources == null || sources.isEmpty()) {
+            prompt.append("- No source content was provided.\n");
+            return;
+        }
+        for (int index = 0; index < sources.size(); index++) {
+            HandoffSkillSourceDTO source = sources.get(index);
+            prompt.append("[").append(index + 1).append("] ")
+                    .append(safeText(source.getSourceType())).append(" ")
+                    .append(safeText(source.getTitle())).append(" ")
+                    .append(safeText(source.getExternalId())).append('\n')
+                    .append(truncate(safeText(source.getContent()).replaceAll("\\s+", " "), maxLength))
+                    .append("\n\n");
+        }
+    }
+
     private AiNoteOrganizeResult buildMockOrganizeResult(AiSummaryCommand command) {
         AiNoteOrganizeResult result = new AiNoteOrganizeResult();
         result.setNoteId(command.getNoteId());
@@ -362,6 +451,58 @@ public class AiSummaryServiceImpl implements AiSummaryService {
         }
         result.getNextActions().add("挑选一篇高价值笔记，继续整理成常青内容。");
         return result;
+    }
+
+    private HandoffSkillResultDTO buildMockHandoffSkill(AiAsyncJobCommand command) {
+        HandoffSkillResultDTO result = new HandoffSkillResultDTO();
+        String name = StringUtils.hasText(command.getSkillName()) ? command.getSkillName() : "团队交接助手";
+        String role = StringUtils.hasText(command.getRoleDescription()) ? command.getRoleDescription() : "围绕项目交接和团队协作提供上下文。";
+        int sourceCount = command.getSkillSources() == null ? 0 : command.getSkillSources().size();
+
+        result.getRoleBoundaries().add(name + " 只回答与该项目/角色交接相关的问题。");
+        result.getRoleBoundaries().add("遇到资料没有覆盖的细节时，明确提示需要向负责人确认。");
+        result.getRoleBoundaries().add("不模拟具体成员人格，不代表任何个人做承诺。");
+
+        result.getWorkPrinciples().add("先确认背景、目标、当前状态，再给下一步动作。");
+        result.getWorkPrinciples().add("优先使用飞书文档中的稳定结论，再参考群聊中的临时讨论。");
+        result.getWorkPrinciples().add("交接事项要沉淀为清单、负责人和截止时间。");
+
+        result.getDecisionRules().add("影响范围不清楚时，先补充风险评估，再推进实现。");
+        result.getDecisionRules().add("文档和群聊结论冲突时，以最近的明确文档为准。");
+        result.getDecisionRules().add("涉及上线、权限或外部沟通时，需要二次确认。");
+
+        result.getWorkflowChecklists().add("梳理当前任务：目标、依赖、风险、未决问题。");
+        result.getWorkflowChecklists().add("确认交接材料：关键文档、群聊结论、历史决策。");
+        result.getWorkflowChecklists().add("输出下一步：负责人、验收口径、时间点。");
+
+        result.getCommunicationStyle().add("回复保持直接、具体、可执行。");
+        result.getCommunicationStyle().add("先给结论，再补充依据和风险。");
+        result.getCommunicationStyle().add("对不确定内容使用明确的待确认表述。");
+
+        result.getRiskWarnings().add("当前来源数量为 " + sourceCount + "，来源不足时蒸馏结果只适合演示和辅助交接。");
+        result.getRiskWarnings().add("飞书群聊可能包含临时意见，不应直接替代正式文档。");
+
+        result.getHandoffQuestions().add("这个角色当前最重要的交付物是什么？");
+        result.getHandoffQuestions().add("有哪些上线、权限、数据或外部协作风险？");
+        result.getHandoffQuestions().add("新人接手第一天应该先看哪些材料？");
+
+        result.getCitations().add("角色描述：" + role);
+        if (command.getSkillSources() != null) {
+            command.getSkillSources().stream()
+                    .limit(5)
+                    .map(source -> safeText(source.getSourceType()) + ":" + safeText(source.getTitle()))
+                    .forEach(result.getCitations()::add);
+        }
+        return result;
+    }
+
+    private String buildMockHandoffAnswer(AiAsyncJobCommand command) {
+        String question = StringUtils.hasText(command.getQuestion()) ? command.getQuestion() : "当前应该如何交接？";
+        String checklist = command.getHandoffSkill() == null || command.getHandoffSkill().getWorkflowChecklists().isEmpty()
+                ? "先确认目标、资料、风险和下一步负责人。"
+                : String.join("；", command.getHandoffSkill().getWorkflowChecklists().stream().limit(3).toList());
+        return "针对「" + question + "」，建议先按交接 Skill 的清单推进：" + checklist
+                + "。如果问题涉及未覆盖的具体排期、权限或外部承诺，需要回到飞书源资料或负责人处确认。";
     }
 
     private List<String> extractActionCandidates(String content) {

@@ -5,12 +5,15 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifeos.api.ai.dto.AiAsyncJobCommand;
 import com.lifeos.api.ai.dto.AiAsyncJobDTO;
 import com.lifeos.api.ai.dto.AiAsyncJobResultDTO;
 import com.lifeos.api.ai.dto.AiAsyncJobUpdateDTO;
 import com.lifeos.api.ai.dto.AiJobStatus;
 import com.lifeos.api.ai.dto.AiJobType;
+import com.lifeos.api.ai.dto.HandoffSkillResultDTO;
+import com.lifeos.api.ai.dto.HandoffSkillSourceDTO;
 import com.lifeos.api.ai.mq.AiMqConstants;
 import com.lifeos.api.behavior.client.BehaviorFeignClient;
 import com.lifeos.api.behavior.dto.BehaviorEventCommand;
@@ -18,8 +21,12 @@ import com.lifeos.api.behavior.dto.DashboardStatsDTO;
 import com.lifeos.api.behavior.mq.BehaviorMqConstants;
 import com.lifeos.common.response.Result;
 import com.lifeos.note.domain.entity.AiWorkflowJob;
+import com.lifeos.note.domain.entity.HandoffSkill;
+import com.lifeos.note.domain.entity.HandoffSkillChat;
 import com.lifeos.note.domain.entity.Note;
 import com.lifeos.note.mapper.AiWorkflowJobMapper;
+import com.lifeos.note.mapper.HandoffSkillChatMapper;
+import com.lifeos.note.mapper.HandoffSkillMapper;
 import com.lifeos.note.mapper.NoteMapper;
 import com.lifeos.note.service.AiJobService;
 import jakarta.annotation.Resource;
@@ -58,10 +65,19 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
     private NoteMapper noteMapper;
 
     @Resource
+    private HandoffSkillMapper handoffSkillMapper;
+
+    @Resource
+    private HandoffSkillChatMapper handoffSkillChatMapper;
+
+    @Resource
     private BehaviorFeignClient behaviorFeignClient;
 
     @Resource
     private RocketMQTemplate rocketMQTemplate;
+
+    @Resource
+    private ObjectMapper objectMapper;
 
     @Override
     public AiAsyncJobDTO submitNoteJob(Long userId, Long noteId, String jobType) {
@@ -91,6 +107,34 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
     }
 
     @Override
+    public AiAsyncJobDTO submitSkillDistillJob(Long userId, Long skillId, String skillName, String roleDescription,
+            List<HandoffSkillSourceDTO> sources) {
+        AiAsyncJobCommand command = new AiAsyncJobCommand();
+        command.setUserId(userId);
+        command.setSkillId(skillId);
+        command.setJobType(AiJobType.SKILL_DISTILL);
+        command.setSkillName(skillName);
+        command.setRoleDescription(roleDescription);
+        command.setSkillSources(sources == null ? List.of() : sources);
+        return createAndDispatchJob(command);
+    }
+
+    @Override
+    public AiAsyncJobDTO submitSkillAskJob(Long userId, Long skillId, String skillName, String roleDescription,
+            String question, HandoffSkillResultDTO handoffSkill, List<HandoffSkillSourceDTO> sources) {
+        AiAsyncJobCommand command = new AiAsyncJobCommand();
+        command.setUserId(userId);
+        command.setSkillId(skillId);
+        command.setJobType(AiJobType.SKILL_ASK);
+        command.setSkillName(skillName);
+        command.setRoleDescription(roleDescription);
+        command.setQuestion(question);
+        command.setHandoffSkill(handoffSkill);
+        command.setSkillSources(sources == null ? List.of() : sources);
+        return createAndDispatchJob(command);
+    }
+
+    @Override
     public AiAsyncJobDTO getJob(Long userId, Long jobId) {
         return toDto(getOwnedJob(userId, jobId));
     }
@@ -106,6 +150,20 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
         if (StringUtils.hasText(jobType)) {
             wrapper.eq(AiWorkflowJob::getJobType, normalizeJobType(jobType));
         }
+        if (limit != null && limit > 0) {
+            wrapper.last("LIMIT " + Math.min(limit, 50));
+        }
+        return this.list(wrapper).stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Override
+    public List<AiAsyncJobDTO> listSkillJobs(Long userId, Long skillId, Integer limit) {
+        LambdaQueryWrapper<AiWorkflowJob> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AiWorkflowJob::getUserId, userId)
+                .eq(AiWorkflowJob::getSkillId, skillId)
+                .orderByDesc(AiWorkflowJob::getCreateTime);
         if (limit != null && limit > 0) {
             wrapper.last("LIMIT " + Math.min(limit, 50));
         }
@@ -148,6 +206,8 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
 
         if (AiJobStatus.SUCCESS.equals(normalizedStatus)) {
             applyJobResult(job, request.getResult());
+        } else if (AiJobStatus.FAILED.equals(normalizedStatus)) {
+            applyJobFailure(job);
         }
     }
 
@@ -158,6 +218,7 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
         job.setId(IdWorker.getId());
         job.setUserId(command.getUserId());
         job.setNoteId(command.getNoteId());
+        job.setSkillId(command.getSkillId());
         job.setJobType(command.getJobType());
         job.setStatus(AiJobStatus.PENDING);
         command.setJobId(job.getId());
@@ -190,7 +251,9 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
         AiAsyncJobDTO dto = new AiAsyncJobDTO();
         dto.setId(job.getId());
         dto.setNoteId(job.getNoteId());
+        dto.setSkillId(job.getSkillId());
         dto.setNoteTitle(resolveNoteTitle(job));
+        dto.setSkillName(resolveSkillName(job));
         dto.setJobType(job.getJobType());
         dto.setStatus(job.getStatus());
         dto.setErrorMessage(job.getErrorMessage());
@@ -213,6 +276,17 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
                 .eq(Note::getUserId, job.getUserId());
         Note note = noteMapper.selectOne(wrapper);
         return note == null ? null : note.getTitle();
+    }
+
+    private String resolveSkillName(AiWorkflowJob job) {
+        if (job.getSkillId() == null || job.getUserId() == null) {
+            return null;
+        }
+        LambdaQueryWrapper<HandoffSkill> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(HandoffSkill::getId, job.getSkillId())
+                .eq(HandoffSkill::getUserId, job.getUserId());
+        HandoffSkill skill = handoffSkillMapper.selectOne(wrapper);
+        return skill == null ? null : skill.getName();
     }
 
     private Note getOwnedNote(Long userId, Long noteId) {
@@ -264,7 +338,54 @@ public class AiJobServiceImpl extends ServiceImpl<AiWorkflowJobMapper, AiWorkflo
                 && result.getTasks() != null
                 && !result.getTasks().isEmpty()) {
             recordBehaviorEvent(job.getUserId(), "EXTRACT_TASK_FROM_NOTE", job.getNoteId());
+            return;
         }
+
+        if (AiJobType.SKILL_DISTILL.equals(job.getJobType()) && result.getHandoffSkill() != null) {
+            try {
+                LambdaUpdateWrapper<HandoffSkill> wrapper = new LambdaUpdateWrapper<>();
+                wrapper.eq(HandoffSkill::getId, job.getSkillId())
+                        .eq(HandoffSkill::getUserId, job.getUserId())
+                        .set(HandoffSkill::getStatus, "DISTILLED")
+                        .set(HandoffSkill::getDistillResult, objectMapper.writeValueAsString(result.getHandoffSkill()))
+                        .set(HandoffSkill::getLatestJobId, job.getId());
+                handoffSkillMapper.update(null, wrapper);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to save handoff skill result", ex);
+            }
+            return;
+        }
+
+        if (AiJobType.SKILL_ASK.equals(job.getJobType()) && StringUtils.hasText(result.getSkillAnswer())) {
+            AiAsyncJobCommand command = JSON.parseObject(job.getRequestPayload(), AiAsyncJobCommand.class);
+            HandoffSkillChat chat = new HandoffSkillChat();
+            chat.setId(IdWorker.getId());
+            chat.setUserId(job.getUserId());
+            chat.setSkillId(job.getSkillId());
+            chat.setJobId(job.getId());
+            chat.setQuestion(command == null ? "" : command.getQuestion());
+            chat.setAnswer(result.getSkillAnswer());
+            chat.setCitations(JSON.toJSONString(result.getCitations()));
+            handoffSkillChatMapper.insert(chat);
+
+            LambdaUpdateWrapper<HandoffSkill> wrapper = new LambdaUpdateWrapper<>();
+            wrapper.eq(HandoffSkill::getId, job.getSkillId())
+                    .eq(HandoffSkill::getUserId, job.getUserId())
+                    .set(HandoffSkill::getLatestJobId, job.getId());
+            handoffSkillMapper.update(null, wrapper);
+        }
+    }
+
+    private void applyJobFailure(AiWorkflowJob job) {
+        if (!AiJobType.SKILL_DISTILL.equals(job.getJobType()) || job.getSkillId() == null) {
+            return;
+        }
+        LambdaUpdateWrapper<HandoffSkill> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(HandoffSkill::getId, job.getSkillId())
+                .eq(HandoffSkill::getUserId, job.getUserId())
+                .set(HandoffSkill::getStatus, "FAILED")
+                .set(HandoffSkill::getLatestJobId, job.getId());
+        handoffSkillMapper.update(null, wrapper);
     }
 
     private void markJobFailed(Long jobId, String message) {

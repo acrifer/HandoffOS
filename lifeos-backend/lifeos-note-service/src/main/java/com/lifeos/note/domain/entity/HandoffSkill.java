@@ -10,8 +10,8 @@ import lombok.Data;
 import java.util.Date;
 
 @Data
-@TableName("ai_workflow_job")
-public class AiWorkflowJob {
+@TableName("handoff_skill")
+public class HandoffSkill {
     @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
@@ -19,23 +19,22 @@ public class AiWorkflowJob {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long userId;
 
-    @JsonSerialize(using = ToStringSerializer.class)
-    private Long noteId;
+    private String name;
 
-    @JsonSerialize(using = ToStringSerializer.class)
-    private Long skillId;
-
-    private String jobType;
+    private String roleDescription;
 
     private String status;
 
-    private String requestPayload;
+    private String distillResult;
 
-    private String resultPayload;
+    private Integer sourceCount;
 
-    private String errorMessage;
+    private Integer documentSourceCount;
 
-    private Date finishedTime;
+    private Integer chatSourceCount;
+
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long latestJobId;
 
     private Date createTime;
 

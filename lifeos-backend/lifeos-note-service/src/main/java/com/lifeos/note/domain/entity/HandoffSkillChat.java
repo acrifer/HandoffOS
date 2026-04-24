@@ -10,34 +10,26 @@ import lombok.Data;
 import java.util.Date;
 
 @Data
-@TableName("ai_workflow_job")
-public class AiWorkflowJob {
+@TableName("handoff_skill_chat")
+public class HandoffSkillChat {
     @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     @JsonSerialize(using = ToStringSerializer.class)
+    private Long skillId;
+
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long userId;
 
     @JsonSerialize(using = ToStringSerializer.class)
-    private Long noteId;
+    private Long jobId;
 
-    @JsonSerialize(using = ToStringSerializer.class)
-    private Long skillId;
+    private String question;
 
-    private String jobType;
+    private String answer;
 
-    private String status;
-
-    private String requestPayload;
-
-    private String resultPayload;
-
-    private String errorMessage;
-
-    private Date finishedTime;
+    private String citations;
 
     private Date createTime;
-
-    private Date updateTime;
 }

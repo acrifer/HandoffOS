@@ -7,6 +7,7 @@ import com.lifeos.api.ai.dto.AiAsyncJobCommand;
 import com.lifeos.api.ai.dto.AiAsyncJobUpdateDTO;
 import com.lifeos.api.ai.dto.AiJobStatus;
 import com.lifeos.api.ai.dto.AiJobType;
+import com.lifeos.api.ai.dto.HandoffSkillResultDTO;
 import com.lifeos.api.ai.dto.AiSummaryResult;
 import com.lifeos.common.response.Result;
 import org.junit.jupiter.api.Test;
@@ -58,5 +59,29 @@ class AiJobConsumerTest {
         AiAsyncJobUpdateDTO successUpdate = updateCaptor.getAllValues().get(1);
         assertThat(successUpdate.getStatus()).isEqualTo(AiJobStatus.SUCCESS);
         assertThat(successUpdate.getResult().getSummary()).isEqualTo("这是生成好的摘要。");
+    }
+
+    @Test
+    void onMessageHandlesSkillDistillJob() {
+        AiAsyncJobCommand command = new AiAsyncJobCommand();
+        command.setJobId(2002L);
+        command.setUserId(9L);
+        command.setSkillId(3001L);
+        command.setJobType(AiJobType.SKILL_DISTILL);
+        command.setSkillName("支付后端交接助手");
+
+        HandoffSkillResultDTO result = new HandoffSkillResultDTO();
+        result.getRoleBoundaries().add("只回答支付项目交接问题。");
+        when(aiSummaryService.distillHandoffSkill(any())).thenReturn(result);
+        when(noteFeignClient.updateJobStatus(eq(2002L), any(AiAsyncJobUpdateDTO.class))).thenReturn(Result.success());
+
+        consumer.onMessage(JSON.toJSONString(command));
+
+        ArgumentCaptor<AiAsyncJobUpdateDTO> updateCaptor = ArgumentCaptor.forClass(AiAsyncJobUpdateDTO.class);
+        verify(noteFeignClient, org.mockito.Mockito.times(2)).updateJobStatus(eq(2002L), updateCaptor.capture());
+        AiAsyncJobUpdateDTO successUpdate = updateCaptor.getAllValues().get(1);
+        assertThat(successUpdate.getStatus()).isEqualTo(AiJobStatus.SUCCESS);
+        assertThat(successUpdate.getResult().getHandoffSkill().getRoleBoundaries())
+                .contains("只回答支付项目交接问题。");
     }
 }

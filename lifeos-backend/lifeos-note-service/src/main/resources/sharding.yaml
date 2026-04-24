@@ -22,5 +22,8 @@ rules:
 - !SINGLE
   tables:
     - ds0.ai_workflow_job
+    - ds0.handoff_skill
+    - ds0.handoff_skill_source
+    - ds0.handoff_skill_chat
 props:
   sql-show: true

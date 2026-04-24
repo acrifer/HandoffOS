@@ -47,6 +47,8 @@ public class AiJobConsumer implements RocketMQListener<String> {
                 case AiJobType.ORGANIZE -> buildOrganizeResult(command);
                 case AiJobType.EXTRACT_TASKS -> buildTaskExtractionResult(command);
                 case AiJobType.WEEKLY_REVIEW -> buildWeeklyReviewResult(command);
+                case AiJobType.SKILL_DISTILL -> buildSkillDistillResult(command);
+                case AiJobType.SKILL_ASK -> buildSkillAskResult(command);
                 default -> throw new IllegalArgumentException("Unsupported ai job type: " + command.getJobType());
             };
             updateStatus(command.getJobId(), AiJobStatus.SUCCESS, null, result);
@@ -93,6 +95,21 @@ public class AiJobConsumer implements RocketMQListener<String> {
     private AiAsyncJobResultDTO buildWeeklyReviewResult(AiAsyncJobCommand command) {
         AiAsyncJobResultDTO result = new AiAsyncJobResultDTO();
         result.setWeeklyReview(aiSummaryService.generateWeeklyReview(command));
+        return result;
+    }
+
+    private AiAsyncJobResultDTO buildSkillDistillResult(AiAsyncJobCommand command) {
+        AiAsyncJobResultDTO result = new AiAsyncJobResultDTO();
+        result.setHandoffSkill(aiSummaryService.distillHandoffSkill(command));
+        return result;
+    }
+
+    private AiAsyncJobResultDTO buildSkillAskResult(AiAsyncJobCommand command) {
+        AiAsyncJobResultDTO result = new AiAsyncJobResultDTO();
+        result.setSkillAnswer(aiSummaryService.answerHandoffSkillQuestion(command));
+        if (command.getHandoffSkill() != null && command.getHandoffSkill().getCitations() != null) {
+            result.setCitations(command.getHandoffSkill().getCitations().stream().limit(5).toList());
+        }
         return result;
     }
 

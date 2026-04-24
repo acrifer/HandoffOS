@@ -81,6 +81,12 @@ spring:
             - Path=/api/note/**
           filters:
             - StripPrefix=1
+        - id: skill-service
+          uri: lb://lifeos-note-service
+          predicates:
+            - Path=/api/skill/**
+          filters:
+            - StripPrefix=1
         - id: ai-service
           uri: lb://lifeos-ai-service
           predicates:

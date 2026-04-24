@@ -9,6 +9,7 @@ const navItems = [
   { to: '/note', label: '笔记库' },
   { to: '/task', label: '任务' },
   { to: '/ai', label: 'AI 工作台' },
+  { to: '/skill', label: '交接 Skill' },
   { to: '/user', label: '我的' }
 ]
 

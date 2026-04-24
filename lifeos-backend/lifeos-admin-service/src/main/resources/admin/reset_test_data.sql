@@ -3,6 +3,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 TRUNCATE TABLE `user_behavior`;
 TRUNCATE TABLE `admin_audit_log`;
+TRUNCATE TABLE `handoff_skill_chat`;
+TRUNCATE TABLE `handoff_skill_source`;
+TRUNCATE TABLE `handoff_skill`;
 TRUNCATE TABLE `ai_workflow_job`;
 TRUNCATE TABLE `task`;
 TRUNCATE TABLE `note_0`;

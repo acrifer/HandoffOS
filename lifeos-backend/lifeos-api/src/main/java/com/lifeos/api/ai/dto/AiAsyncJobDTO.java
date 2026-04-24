@@ -15,7 +15,11 @@ public class AiAsyncJobDTO implements Serializable {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long noteId;
 
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long skillId;
+
     private String noteTitle;
+    private String skillName;
     private String jobType;
     private String status;
     private String errorMessage;

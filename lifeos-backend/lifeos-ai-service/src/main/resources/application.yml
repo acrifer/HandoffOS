@@ -16,6 +16,6 @@ rocketmq:
 
 lifeos:
   ai:
-    base-url: ${LIFEOS_AI_BASE_URL:https://open.bigmodel.cn/api/paas/v4}
+    base-url: ${LIFEOS_AI_BASE_URL:https://api.deepseek.com}
     api-key: ${LIFEOS_AI_API_KEY:LIFEOS_AI_API_KEY}
-    model: ${LIFEOS_AI_MODEL:glm-4.5-air}
+    model: ${LIFEOS_AI_MODEL:deepseek-chat}

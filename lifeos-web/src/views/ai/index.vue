@@ -112,6 +112,8 @@
           <option value="ORGANIZE">整理</option>
           <option value="EXTRACT_TASKS">提取任务</option>
           <option value="WEEKLY_REVIEW">周复盘</option>
+          <option value="SKILL_DISTILL">Skill 蒸馏</option>
+          <option value="SKILL_ASK">Skill 问答</option>
         </select>
         <select v-model="jobStatusFilter">
           <option value="all">全部状态</option>
@@ -147,7 +149,7 @@
             @click="selectJob(job)"
           >
             <div class="history-main">
-              <strong>{{ job.noteTitle || jobTypeLabel(job.jobType) }}</strong>
+              <strong>{{ job.noteTitle || job.skillName || jobTypeLabel(job.jobType) }}</strong>
               <p>{{ jobTypeLabel(job.jobType) }} · {{ formatDate(job.createTime) }}</p>
             </div>
             <span class="badge" :class="statusClass(job.status)">{{ jobStatusLabel(job.status) }}</span>
@@ -160,7 +162,7 @@
             <div class="row">
               <div>
                 <p class="section-label">作业详情</p>
-                <h3>{{ activeJob.noteTitle || jobTypeLabel(activeJob.jobType) }}</h3>
+                <h3>{{ activeJob.noteTitle || activeJob.skillName || jobTypeLabel(activeJob.jobType) }}</h3>
               </div>
               <span class="badge" :class="statusClass(activeJob.status)">{{ jobStatusLabel(activeJob.status) }}</span>
             </div>
@@ -171,6 +173,7 @@
 
             <div class="detail-actions">
               <button v-if="activeJob.noteId" class="ghost-btn" @click="openRelatedNote(activeJob)">打开关联笔记</button>
+              <button v-if="activeJob.skillId" class="ghost-btn" @click="router.push('/skill')">打开 Skill 工作台</button>
               <button v-if="activeJob.jobType === 'WEEKLY_REVIEW'" class="ghost-btn" @click="router.push('/dashboard')">回到总览页</button>
             </div>
 
@@ -224,6 +227,37 @@
                   <strong>下一步</strong>
                   <ul>
                     <li v-for="item in activeJob.result?.weeklyReview?.nextActions || []" :key="item">{{ item }}</li>
+                  </ul>
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="activeJob.jobType === 'SKILL_DISTILL'">
+              <div class="result-box">
+                <strong>Skill 蒸馏结果</strong>
+                <div class="group">
+                  <strong>角色边界</strong>
+                  <ul>
+                    <li v-for="item in activeJob.result?.handoffSkill?.roleBoundaries || []" :key="item">{{ item }}</li>
+                  </ul>
+                </div>
+                <div class="group">
+                  <strong>检查清单</strong>
+                  <ul>
+                    <li v-for="item in activeJob.result?.handoffSkill?.workflowChecklists || []" :key="item">{{ item }}</li>
+                  </ul>
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="activeJob.jobType === 'SKILL_ASK'">
+              <div class="result-box">
+                <strong>Skill 问答</strong>
+                <p>{{ activeJob.result?.skillAnswer || '暂无回答。' }}</p>
+                <div v-if="activeJob.result?.citations?.length" class="group">
+                  <strong>引用</strong>
+                  <ul>
+                    <li v-for="item in activeJob.result.citations" :key="item">{{ item }}</li>
                   </ul>
                 </div>
               </div>
@@ -357,7 +391,7 @@ const formatDate = (value) =>
     ? new Date(value).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '未设置时间'
 
-const jobTypeLabel = (value) => ({ SUMMARY: '摘要', ORGANIZE: '整理', EXTRACT_TASKS: '提取任务', WEEKLY_REVIEW: '周复盘' }[value] || value)
+const jobTypeLabel = (value) => ({ SUMMARY: '摘要', ORGANIZE: '整理', EXTRACT_TASKS: '提取任务', WEEKLY_REVIEW: '周复盘', SKILL_DISTILL: 'Skill 蒸馏', SKILL_ASK: 'Skill 问答' }[value] || value)
 const jobStatusLabel = (value) => ({ PENDING: '排队中', PROCESSING: '处理中', SUCCESS: '已完成', FAILED: '失败' }[value] || '未知状态')
 const statusClass = (value) => ({
   success: value === 'SUCCESS',

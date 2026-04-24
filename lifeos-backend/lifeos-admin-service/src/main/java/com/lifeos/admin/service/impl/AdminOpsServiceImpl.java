@@ -103,7 +103,10 @@ public class AdminOpsServiceImpl implements AdminOpsService {
                 config("LIFEOS_ADMIN_DEFAULT_PASSWORD", env("LIFEOS_ADMIN_DEFAULT_PASSWORD"), true),
                 config("LIFEOS_AI_BASE_URL", env("LIFEOS_AI_BASE_URL"), false),
                 config("LIFEOS_AI_MODEL", env("LIFEOS_AI_MODEL"), false),
-                config("LIFEOS_AI_API_KEY", env("LIFEOS_AI_API_KEY"), true));
+                config("LIFEOS_AI_API_KEY", env("LIFEOS_AI_API_KEY"), true),
+                config("LIFEOS_FEISHU_BASE_URL", env("LIFEOS_FEISHU_BASE_URL", "https://open.feishu.cn/open-apis"), false),
+                config("LIFEOS_FEISHU_APP_ID", env("LIFEOS_FEISHU_APP_ID"), true),
+                config("LIFEOS_FEISHU_APP_SECRET", env("LIFEOS_FEISHU_APP_SECRET"), true));
     }
 
     @Override

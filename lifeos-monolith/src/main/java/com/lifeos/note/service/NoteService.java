@@ -1,5 +1,6 @@
 package com.lifeos.note.service;
 
+import com.lifeos.ai.embedding.NoteEmbeddingService;
 import com.lifeos.note.dto.NoteRequest;
 import com.lifeos.note.dto.NoteResponse;
 import com.lifeos.note.entity.Note;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NoteService {
 
     private final NoteRepository noteRepository;
+    private final NoteEmbeddingService embeddingService;
 
     @Transactional
     public NoteResponse createNote(Long userId, NoteRequest request) {
@@ -32,8 +34,8 @@ public class NoteService {
 
         note = noteRepository.save(note);
 
-        // TODO: Trigger async embedding generation for RAG
-        // embeddingService.generateEmbeddingAsync(note.getId(), note.getContent());
+        // Trigger async embedding generation for RAG
+        embeddingService.generateEmbeddingAsync(note.getId());
 
         return toResponse(note);
     }
@@ -52,8 +54,8 @@ public class NoteService {
 
         note = noteRepository.save(note);
 
-        // TODO: Update embedding
-        // embeddingService.updateEmbeddingAsync(note.getId(), note.getContent());
+        // Update embedding
+        embeddingService.generateEmbeddingAsync(note.getId());
 
         return toResponse(note);
     }
@@ -64,8 +66,8 @@ public class NoteService {
                 .orElseThrow(() -> new RuntimeException("Note not found"));
         noteRepository.delete(note);
 
-        // TODO: Delete embedding
-        // embeddingService.deleteEmbedding(noteId);
+        // Delete embedding
+        embeddingService.deleteEmbedding(noteId);
     }
 
     public NoteResponse getNote(Long userId, Long noteId) {

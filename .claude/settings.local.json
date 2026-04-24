@@ -4,7 +4,11 @@
       "Bash(xargs grep *)",
       "Bash(git checkout *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git merge *)",
+      "Bash(awk '{print $9, $5}')",
+      "Read(//c/Users/crifer/Documents/project/**)",
+      "Bash(du -sh lifeos-backend admin-web interview-prep .idea)"
     ]
   }
 }

@@ -19,6 +19,11 @@ const router = createRouter({
       component: () => import('../views/dashboard/index.vue')
     },
     {
+      path: '/dashboard/insights',
+      name: 'insights',
+      component: () => import('../views/dashboard/insights.vue')
+    },
+    {
       path: '/task',
       name: 'task',
       component: () => import('../views/task/index.vue')

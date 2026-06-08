@@ -1,0 +1,9 @@
+.runtime/
+.env
+**/target/
+**/node_modules/
+**/dist/
+*.log
+dump.rdb
+lifeos-backend/lifeos-note-service/cp.txt
+lifeos-backend/lifeos-note-service/cp-runtime.txt

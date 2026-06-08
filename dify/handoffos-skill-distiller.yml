@@ -1,0 +1,189 @@
+app:
+  description: HandoffOS team handoff skill distiller. It converts Feishu documents and chat sources into a structured handoff Skill JSON.
+  icon: 🧭
+  icon_background: '#EFF6FF'
+  mode: workflow
+  name: HandoffOS Skill Distiller
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.3.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+  graph:
+    edges:
+      - data:
+          isInIteration: false
+          sourceType: start
+          targetType: llm
+        id: start-distill_llm
+        source: start
+        sourceHandle: source
+        target: distill_llm
+        targetHandle: target
+        type: custom
+      - data:
+          isInIteration: false
+          sourceType: llm
+          targetType: end
+        id: distill_llm-end
+        source: distill_llm
+        sourceHandle: source
+        target: end
+        targetHandle: target
+        type: custom
+    nodes:
+      - data:
+          desc: ''
+          selected: false
+          title: Start
+          type: start
+          variables:
+            - label: skill_name
+              max_length: 200
+              options: []
+              required: true
+              type: text-input
+              variable: skill_name
+            - label: role_description
+              max_length: 1000
+              options: []
+              required: false
+              type: paragraph
+              variable: role_description
+            - label: dataset_id
+              max_length: 200
+              options: []
+              required: true
+              type: text-input
+              variable: dataset_id
+            - label: sources_json
+              max_length: 20000
+              options: []
+              required: false
+              type: paragraph
+              variable: sources_json
+            - label: sources
+              max_length: 20000
+              options: []
+              required: false
+              type: paragraph
+              variable: sources
+        height: 220
+        id: start
+        position:
+          x: 80
+          y: 260
+        positionAbsolute:
+          x: 80
+          y: 260
+        selected: false
+        type: custom
+        width: 244
+      - data:
+          context:
+            enabled: false
+            variable_selector: []
+          desc: ''
+          memory:
+            role_prefix:
+              assistant: ''
+              user: ''
+            window:
+              enabled: false
+              size: 10
+          model:
+            completion_params:
+              temperature: 0.2
+            mode: chat
+            name: gpt-4o-mini
+            provider: openai
+          prompt_template:
+            - id: system-prompt
+              role: system
+              text: |-
+                你是团队交接 Skill 蒸馏助手。请只基于输入资料生成结构化交接说明，不要编造资料里没有的信息。
+
+                【Skill 名称】{{#start.skill_name#}}
+                【角色说明】{{#start.role_description#}}
+                【Dify Dataset ID】{{#start.dataset_id#}}
+                【资料来源 JSON】
+                {{#start.sources_json#}}
+
+                请返回 JSON，字段如下：
+                {
+                  "roleBoundaries": ["..."],
+                  "workPrinciples": ["..."],
+                  "decisionRules": ["..."],
+                  "workflowChecklists": ["..."],
+                  "communicationStyle": ["..."],
+                  "riskWarnings": ["..."],
+                  "handoffQuestions": ["..."]
+                }
+
+                要求：
+                1. 每条规则都必须能从资料来源中找到依据。
+                2. 如果资料不足，相关字段返回空数组。
+                3. 如果资料冲突，写入 riskWarnings，并提示需要负责人确认。
+                4. 只输出 JSON，不要输出 Markdown。
+            - id: user-prompt
+              role: user
+              text: 请生成该 Skill 的交接蒸馏结果。
+          selected: false
+          title: Distill Skill JSON
+          type: llm
+          variables: []
+          vision:
+            enabled: false
+        height: 98
+        id: distill_llm
+        position:
+          x: 420
+          y: 260
+        positionAbsolute:
+          x: 420
+          y: 260
+        selected: false
+        type: custom
+        width: 244
+      - data:
+          desc: ''
+          outputs:
+            - value_selector:
+                - distill_llm
+                - text
+              variable: handoffSkill
+          selected: false
+          title: End
+          type: end
+        height: 90
+        id: end
+        position:
+          x: 760
+          y: 260
+        positionAbsolute:
+          x: 760
+          y: 260
+        selected: false
+        type: custom
+        width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.9

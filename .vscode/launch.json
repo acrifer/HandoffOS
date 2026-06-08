@@ -1,0 +1,49 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "AiApplication",
+            "request": "launch",
+            "mainClass": "com.lifeos.ai.AiApplication",
+            "projectName": "lifeos-ai-service"
+        },
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "GatewayApplication",
+            "request": "launch",
+            "mainClass": "com.lifeos.gateway.GatewayApplication",
+            "projectName": "lifeos-gateway"
+        },
+        {
+            "type": "java",
+            "name": "NoteApplication",
+            "request": "launch",
+            "mainClass": "com.lifeos.note.NoteApplication",
+            "projectName": "lifeos-note-service"
+        },
+        {
+            "type": "java",
+            "name": "TaskApplication",
+            "request": "launch",
+            "mainClass": "com.lifeos.task.TaskApplication",
+            "projectName": "lifeos-task-service"
+        },
+        {
+            "type": "java",
+            "name": "UserApplication",
+            "request": "launch",
+            "mainClass": "com.lifeos.user.UserApplication",
+            "projectName": "lifeos-user-service"
+        }
+    ]
+}

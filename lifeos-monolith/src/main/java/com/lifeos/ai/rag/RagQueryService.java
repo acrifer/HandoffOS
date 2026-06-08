@@ -74,7 +74,7 @@ public class RagQueryService {
 
         } catch (Exception e) {
             log.error("RAG Query failed: {}", e.getMessage(), e);
-            return buildErrorResponse(e.getMessage(), startTime);
+            throw new IllegalStateException("RAG Query failed: " + e.getMessage(), e);
         }
     }
 
@@ -110,7 +110,7 @@ public class RagQueryService {
      */
     private String generateAnswer(String query, String context) {
         if (!aiProperties.hasApiKey()) {
-            return generateMockAnswer(query, context);
+            throw new IllegalStateException("AI API key is not configured");
         }
 
         try {
@@ -146,7 +146,7 @@ public class RagQueryService {
 
         } catch (Exception e) {
             log.error("Failed to generate answer via LLM: {}", e.getMessage());
-            return generateMockAnswer(query, context);
+            throw new IllegalStateException("Failed to generate answer via LLM: " + e.getMessage(), e);
         }
     }
 
@@ -156,18 +156,6 @@ public class RagQueryService {
     private String parseAnswerFromResponse(String response) throws Exception {
         JsonNode root = objectMapper.readTree(response);
         return root.path("choices").get(0).path("message").path("content").asText();
-    }
-
-    /**
-     * Generate mock answer for development/testing
-     */
-    private String generateMockAnswer(String query, String context) {
-        return String.format(
-                "根据您的笔记，关于「%s」的相关内容如下：\n\n%s\n\n" +
-                "（注意：这是模拟回答，实际使用需要配置 AI_API_KEY）",
-                query,
-                context.length() > 500 ? context.substring(0, 500) + "..." : context
-        );
     }
 
     /**
@@ -201,16 +189,4 @@ public class RagQueryService {
         return response;
     }
 
-    /**
-     * Build error response
-     */
-    private RagQueryResponse buildErrorResponse(String error, long startTime) {
-        RagQueryResponse response = new RagQueryResponse();
-        response.setAnswer("抱歉，查询过程中出现错误：" + error);
-        response.setSources(new ArrayList<>());
-        response.setRetrievedCount(0);
-        response.setResponseTimeMs(System.currentTimeMillis() - startTime);
-        response.setModel(aiProperties.getModel());
-        return response;
-    }
 }

@@ -19,6 +19,6 @@ public class AiProperties {
     private Integer embeddingDimensions = 1536;
 
     public boolean hasApiKey() {
-        return apiKey != null && !apiKey.trim().isEmpty();
+        return apiKey != null && !apiKey.trim().isEmpty() && !"mock".equalsIgnoreCase(apiKey.trim());
     }
 }

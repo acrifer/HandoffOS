@@ -1,20 +1,20 @@
 <template>
-  <div class="account-page">
-    <section class="hero-card">
+  <div class="page-shell account-page">
+    <section class="page-header">
       <div class="hero-copy">
-        <p class="eyebrow">账户中心</p>
-        <h1>统一管理你的账号资料</h1>
-        <p>在这里查看账户信息、更新基础资料、修改密码，并快速确认当前账号关联的数据状态。</p>
+        <p class="eyebrow">设置</p>
+        <h1>管理控制台账号和演示状态。</h1>
+        <p>查看当前登录账号、修改基础资料，并确认这个账号下的交接资料和行动项规模。</p>
       </div>
 
       <div class="hero-stats">
         <article>
           <strong>{{ dashboard.noteCount || 0 }}</strong>
-          <span>笔记总数</span>
+          <span>交接资料</span>
         </article>
         <article>
           <strong>{{ dashboard.pendingTaskCount || 0 }}</strong>
-          <span>待办任务</span>
+          <span>待处理行动</span>
         </article>
         <article>
           <strong>{{ dashboard.weekCompletedTaskCount || 0 }}</strong>
@@ -72,14 +72,14 @@
           <div class="panel-header">
             <div>
               <h3>基础资料</h3>
-              <p>更新用户名和邮箱。</p>
+              <p>更新当前账号可编辑的信息。</p>
             </div>
           </div>
 
           <form class="form-grid" @submit.prevent="submitProfile">
             <label>
               <span>用户名</span>
-              <input v-model="profileForm.username" type="text" placeholder="请输入用户名" />
+              <input v-model="profileForm.username" type="text" placeholder="当前环境不支持修改用户名" disabled />
             </label>
             <label>
               <span>邮箱</span>
@@ -102,36 +102,108 @@
         <article class="panel-card">
           <div class="panel-header">
             <div>
-              <h3>密码修改</h3>
-              <p>修改当前账号密码。</p>
+              <h3>演示环境说明</h3>
+              <p>当前后端只开放了登录、注册、邮箱更新和退出接口。</p>
             </div>
           </div>
+          <div class="helper-card">
+            <ul>
+              <li>密码修改接口尚未在当前 HandoffOS 后端兼容层开放。</li>
+              <li>如果需要完整账号管理，优先补齐 `/user/password` 与任务兼容接口。</li>
+              <li>本页仍可用于演示登录态、资料规模和邮箱更新能力。</li>
+            </ul>
+          </div>
+        </article>
 
-          <form class="form-grid" @submit.prevent="submitPassword">
-            <label>
-              <span>当前密码</span>
-              <input v-model="passwordForm.currentPassword" type="password" placeholder="请输入当前密码" />
-            </label>
-            <label>
-              <span>新密码</span>
-              <input v-model="passwordForm.newPassword" type="password" placeholder="至少 6 位" />
-            </label>
-            <label>
-              <span>确认新密码</span>
-              <input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" />
-            </label>
-
-            <div v-if="passwordMessage" class="message" :class="{ success: passwordSuccess }">
-              {{ passwordMessage }}
+        <article class="panel-card">
+          <div class="panel-header row">
+            <div>
+              <h3>飞书机器人</h3>
+              <p>把飞书群 chat_id 绑定到 Skill，群内 @机器人即可同步资料、问答和创建行动项。</p>
             </div>
+            <button class="ghost-btn" type="button" :disabled="botLoading" @click="fetchBotData">
+              {{ botLoading ? '刷新中...' : '刷新' }}
+            </button>
+          </div>
 
+          <div class="bot-status-grid">
+            <article>
+              <span>飞书凭证</span>
+              <strong :class="botStatus.credentialsConfigured ? 'ok' : 'bad'">
+                {{ botStatus.credentialsConfigured ? '已配置' : '缺失' }}
+              </strong>
+            </article>
+            <article>
+              <span>机器人开关</span>
+              <strong :class="botStatus.botEnabled ? 'ok' : 'bad'">
+                {{ botStatus.botEnabled ? '启用' : '关闭' }}
+              </strong>
+            </article>
+            <article>
+              <span>长连接</span>
+              <strong :class="botStatus.longConnectionEnabled ? 'ok' : 'bad'">
+                {{ botStatus.longConnectionEnabled ? '启用' : '关闭' }}
+              </strong>
+            </article>
+          </div>
+
+          <form class="form-grid bot-form" @submit.prevent="bindFeishuChat">
+            <label>
+              <span>chat_id</span>
+              <input v-model.trim="botForm.chatId" type="text" placeholder="oc_xxx" />
+            </label>
+            <label>
+              <span>群名称</span>
+              <input v-model.trim="botForm.chatName" type="text" placeholder="例如：支付交接群" />
+            </label>
+            <label>
+              <span>绑定 Skill</span>
+              <select v-model.number="botForm.skillId">
+                <option :value="null">选择 Skill</option>
+                <option v-for="skill in skills" :key="skill.id" :value="skill.id">{{ skill.name }}</option>
+              </select>
+            </label>
+            <div v-if="botMessage" class="message" :class="{ success: botSuccess }">{{ botMessage }}</div>
             <div class="form-actions">
-              <button type="button" class="ghost-btn" @click="resetPasswordForm">清空</button>
-              <button type="submit" class="primary-btn" :disabled="savingPassword">
-                {{ savingPassword ? '提交中...' : '更新密码' }}
+              <button type="submit" class="primary-btn" :disabled="botSaving || !botForm.chatId || !botForm.skillId">
+                {{ botSaving ? '绑定中...' : '绑定飞书群' }}
               </button>
             </div>
           </form>
+
+          <div class="binding-list">
+            <article v-for="binding in botBindings" :key="binding.id" class="binding-item">
+              <div>
+                <strong>{{ binding.chatName || binding.chatId }}</strong>
+                <p>{{ binding.chatId }} · {{ binding.skillName || `Skill #${binding.skillId}` }}</p>
+              </div>
+              <div class="binding-actions">
+                <span :class="['badge', binding.enabled ? 'success' : 'warning']">{{ binding.enabled ? '启用' : '停用' }}</span>
+                <button class="ghost-btn" type="button" @click="disableBinding(binding.id)">停用</button>
+              </div>
+            </article>
+            <p v-if="!botBindings.length" class="muted">还没有飞书群绑定。</p>
+          </div>
+
+          <div class="command-help">
+            <p class="section-label">群内演示指令</p>
+            <button v-for="command in botCommands" :key="command" type="button" class="command-chip" @click="copyCommand(command)">
+              {{ command }}
+            </button>
+          </div>
+
+          <div class="event-list">
+            <p class="section-label">最近事件</p>
+            <article v-for="event in botEvents" :key="event.id" class="event-item">
+              <strong>{{ event.commandType }}</strong>
+              <span :class="['badge', event.status === 'SUCCESS' ? 'success' : event.status === 'FAILED' ? 'danger' : 'warning']">
+                {{ event.status }}
+              </span>
+              <p>{{ event.requestText }}</p>
+              <small v-if="event.errorMessage">{{ event.errorMessage }}</small>
+            </article>
+            <p v-if="!botEvents.length" class="muted">暂无机器人事件。</p>
+          </div>
         </article>
       </div>
     </section>
@@ -146,6 +218,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { behaviorApi } from '@/api/behavior'
+import { skillApi } from '@/api/skill'
 import { userApi } from '@/api/user'
 
 const router = useRouter()
@@ -154,33 +227,68 @@ const user = ref(null)
 const dashboard = ref({})
 const loading = ref(true)
 const savingProfile = ref(false)
-const savingPassword = ref(false)
 const loggingOut = ref(false)
 const profileMessage = ref('')
 const profileSuccess = ref(false)
-const passwordMessage = ref('')
-const passwordSuccess = ref(false)
+const skills = ref([])
+const botBindings = ref([])
+const botEvents = ref([])
+const botLoading = ref(false)
+const botSaving = ref(false)
+const botMessage = ref('')
+const botSuccess = ref(false)
+const botStatus = reactive({
+  credentialsConfigured: false,
+  botEnabled: false,
+  longConnectionEnabled: false,
+  bindingCount: 0,
+  eventCount: 0,
+  failedEventCount: 0
+})
 
 const profileForm = reactive({
   username: '',
   email: ''
 })
 
-const passwordForm = reactive({
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: ''
+const botForm = reactive({
+  chatId: '',
+  chatName: '',
+  skillId: null
 })
+
+const botCommands = [
+  '/帮助',
+  '/同步 最近20条',
+  '/同步 文档 <飞书文档链接>',
+  '/蒸馏',
+  '/资料 发布检查 | 上线前确认灰度、回滚、负责人和值班群。',
+  '/任务 新建 补充发布手册 | 缺少回滚步骤说明',
+  '/任务 列表',
+  '/统计'
+]
 
 const syncProfileForm = () => {
   profileForm.username = user.value?.username || ''
   profileForm.email = user.value?.email || ''
 }
 
-const resetPasswordForm = () => {
-  passwordForm.currentPassword = ''
-  passwordForm.newPassword = ''
-  passwordForm.confirmPassword = ''
+const decodeTokenPayload = (token) => {
+  try {
+    const [, payload] = token.split('.')
+    if (!payload) return null
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
+    const json = decodeURIComponent(
+      atob(padded)
+        .split('')
+        .map(char => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
+        .join('')
+    )
+    return JSON.parse(json)
+  } catch (error) {
+    return null
+  }
 }
 
 const fetchPageData = async () => {
@@ -194,9 +302,43 @@ const fetchPageData = async () => {
     dashboard.value = dashboardStats || {}
     syncProfileForm()
   } catch (error) {
-    console.error('Failed to fetch account page data', error)
+    const token = localStorage.getItem('lifeos_token')
+    const payload = token ? decodeTokenPayload(token) : null
+    if (payload) {
+      user.value = {
+        id: payload.userId,
+        username: payload.username || payload.sub || 'unknown',
+        email: '',
+        createTime: null
+      }
+      syncProfileForm()
+    } else {
+      console.error('Failed to fetch account page data', error)
+    }
   } finally {
     loading.value = false
+  }
+  await fetchBotData()
+}
+
+const fetchBotData = async () => {
+  botLoading.value = true
+  try {
+    const [skillList, status, bindings, events] = await Promise.all([
+      skillApi.list().catch(() => []),
+      skillApi.botStatus(),
+      skillApi.botBindings().catch(() => []),
+      skillApi.botEvents({ limit: 8 }).catch(() => [])
+    ])
+    skills.value = skillList || []
+    Object.assign(botStatus, status || {})
+    botBindings.value = bindings || []
+    botEvents.value = events || []
+  } catch (error) {
+    botMessage.value = error.message || '飞书机器人状态加载失败。'
+    botSuccess.value = false
+  } finally {
+    botLoading.value = false
   }
 }
 
@@ -212,12 +354,16 @@ const submitProfile = async () => {
   profileSuccess.value = false
 
   try {
-    const token = await userApi.updateProfile({
+    const response = await userApi.updateProfile({
       username: profileForm.username,
       email: profileForm.email
     })
-    localStorage.setItem('lifeos_token', token)
-    await fetchPageData()
+    user.value = {
+      ...(user.value || {}),
+      ...(response || {}),
+      username: user.value?.username || profileForm.username
+    }
+    syncProfileForm()
     profileMessage.value = '资料已更新。'
     profileSuccess.value = true
   } catch (error) {
@@ -227,34 +373,50 @@ const submitProfile = async () => {
   }
 }
 
-const submitPassword = async () => {
-  passwordMessage.value = ''
-  passwordSuccess.value = false
-
-  if (!passwordForm.currentPassword || !passwordForm.newPassword) {
-    passwordMessage.value = '请填写完整的密码信息。'
-    return
-  }
-
-  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-    passwordMessage.value = '两次输入的新密码不一致。'
-    return
-  }
-
-  savingPassword.value = true
+const bindFeishuChat = async () => {
+  botSaving.value = true
+  botMessage.value = ''
+  botSuccess.value = false
   try {
-    const token = await userApi.updatePassword({
-      currentPassword: passwordForm.currentPassword,
-      newPassword: passwordForm.newPassword
+    await skillApi.createBotBinding({
+      chatId: botForm.chatId,
+      chatName: botForm.chatName,
+      skillId: botForm.skillId,
+      enabled: true
     })
-    localStorage.setItem('lifeos_token', token)
-    resetPasswordForm()
-    passwordMessage.value = '密码已更新。'
-    passwordSuccess.value = true
+    botForm.chatId = ''
+    botForm.chatName = ''
+    botForm.skillId = null
+    botMessage.value = '飞书群已绑定。'
+    botSuccess.value = true
+    await fetchBotData()
   } catch (error) {
-    passwordMessage.value = error.message || '密码更新失败。'
+    botMessage.value = error.message || '绑定失败。'
   } finally {
-    savingPassword.value = false
+    botSaving.value = false
+  }
+}
+
+const disableBinding = async (bindingId) => {
+  try {
+    await skillApi.deleteBotBinding(bindingId)
+    botMessage.value = '绑定已停用。'
+    botSuccess.value = true
+    await fetchBotData()
+  } catch (error) {
+    botMessage.value = error.message || '停用失败。'
+    botSuccess.value = false
+  }
+}
+
+const copyCommand = async (command) => {
+  try {
+    await navigator.clipboard.writeText(command)
+    botMessage.value = '指令已复制。'
+    botSuccess.value = true
+  } catch (error) {
+    botMessage.value = command
+    botSuccess.value = true
   }
 }
 
@@ -288,50 +450,13 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.account-page {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 32px;
-}
-
-.hero-card,
 .profile-card,
 .panel-card,
 .state-card {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #d7e2eb;
-  border-radius: 28px;
-  box-shadow: 0 20px 40px rgba(13, 30, 47, 0.06);
-}
-
-.hero-card {
-  padding: 30px;
-  margin-bottom: 20px;
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 20px;
-  align-items: center;
-}
-
-.eyebrow {
-  margin: 0 0 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 12px;
-  color: #0b5f6f;
-  font-weight: 700;
-}
-
-.hero-copy h1 {
-  margin: 0 0 10px;
-  color: #102033;
-  font-size: 36px;
-}
-
-.hero-copy p:last-child {
-  margin: 0;
-  color: #61778d;
-  line-height: 1.8;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .hero-stats {
@@ -341,21 +466,21 @@ onMounted(() => {
 }
 
 .hero-stats article {
-  padding: 18px 16px;
-  border-radius: 20px;
-  background: #f7fafc;
-  border: 1px solid #e0e8ef;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
 }
 
 .hero-stats strong {
   display: block;
   margin-bottom: 8px;
   font-size: 28px;
-  color: #102033;
+  color: var(--navy);
 }
 
 .hero-stats span {
-  color: #61778d;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
@@ -379,31 +504,30 @@ onMounted(() => {
 }
 
 .avatar {
-  width: 84px;
-  height: 84px;
-  border-radius: 26px;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 800;
   color: white;
-  background: linear-gradient(135deg, #0f766e, #0f4c81);
-  box-shadow: 0 16px 28px rgba(15, 76, 129, 0.18);
+  background: var(--blue);
 }
 
 .profile-head h2,
 .panel-header h3,
 .helper-card h3 {
   margin: 0 0 6px;
-  color: #102033;
+  color: var(--text);
 }
 
 .profile-head p,
 .panel-header p,
 .helper-card li {
   margin: 0;
-  color: #61778d;
+  color: var(--text-muted);
 }
 
 .meta-grid {
@@ -414,28 +538,28 @@ onMounted(() => {
 
 .meta-item {
   padding: 16px;
-  border-radius: 18px;
-  background: #f8fbfd;
-  border: 1px solid #e0e8ef;
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
 }
 
 .meta-item span {
   display: block;
   margin-bottom: 8px;
   font-size: 13px;
-  color: #708497;
+  color: var(--text-muted);
 }
 
 .meta-item strong {
-  color: #102033;
+  color: var(--text);
   font-size: 16px;
 }
 
 .helper-card {
   padding: 18px 20px;
-  border-radius: 22px;
-  background: #f7fafc;
-  border: 1px solid #e0e8ef;
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
 }
 
 .helper-card ul {
@@ -468,37 +592,144 @@ onMounted(() => {
 .form-grid label {
   display: grid;
   gap: 8px;
-  color: #475b71;
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 600;
 }
 
 .form-grid input {
   width: 100%;
-  border: 1px solid #cfdae4;
-  background: #f8fbfd;
-  color: #102033;
-  border-radius: 16px;
-  padding: 13px 14px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 10px 11px;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .form-grid input:focus {
-  border-color: #0f766e;
-  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
+  border-color: var(--blue);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
 .message {
   padding: 12px 14px;
-  border-radius: 14px;
-  color: #b42318;
-  background: rgba(180, 35, 24, 0.08);
+  border-radius: var(--radius);
+  color: var(--red);
+  background: #fef2f2;
 }
 
 .message.success {
-  color: #0f6e53;
-  background: rgba(15, 118, 110, 0.08);
+  color: var(--green);
+  background: #dcfce7;
+}
+
+.bot-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.bot-status-grid article {
+  padding: 13px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+}
+
+.bot-status-grid span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.bot-status-grid strong.ok {
+  color: var(--green);
+}
+
+.bot-status-grid strong.bad {
+  color: var(--red);
+}
+
+.bot-form {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.binding-list,
+.event-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.binding-item,
+.event-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  padding: 13px;
+}
+
+.binding-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.binding-item strong,
+.event-item strong {
+  color: var(--text);
+}
+
+.binding-item p,
+.event-item p,
+.event-item small {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.binding-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.command-help {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.command-help .section-label {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.command-chip {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  color: #334155;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.event-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 10px;
+}
+
+.event-item p,
+.event-item small {
+  grid-column: 1 / -1;
 }
 
 .form-actions {
@@ -510,33 +741,36 @@ onMounted(() => {
 .primary-btn,
 .ghost-btn,
 .danger-btn {
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
 .primary-btn {
-  padding: 12px 18px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #0f766e, #0f4c81);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--blue);
+  border-color: var(--blue);
   color: white;
   font-weight: 700;
 }
 
 .ghost-btn {
-  padding: 12px 18px;
-  border-radius: 16px;
-  background: #f5f9fc;
-  color: #36506a;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  border-color: var(--border);
+  color: #334155;
   font-weight: 700;
 }
 
 .danger-btn {
   margin-top: auto;
-  padding: 14px 18px;
-  border-radius: 16px;
-  background: #fff5f4;
-  color: #b42318;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: var(--red);
   font-weight: 700;
 }
 
@@ -547,19 +781,19 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   gap: 14px;
-  color: #61778d;
+  color: var(--text-muted);
 }
 
 .error-card {
-  color: #b42318;
+  color: var(--red);
 }
 
 .spinner {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 3px solid rgba(15, 118, 110, 0.18);
-  border-top-color: #0f766e;
+  border: 3px solid rgba(37, 99, 235, 0.18);
+  border-top-color: var(--blue);
   animation: spin 0.9s linear infinite;
 }
 
@@ -570,15 +804,16 @@ onMounted(() => {
 }
 
 @media (max-width: 980px) {
-  .account-page {
-    padding: 20px;
-  }
-
-  .hero-card,
   .content-grid,
   .meta-grid,
-  .hero-stats {
+  .hero-stats,
+  .bot-status-grid {
     grid-template-columns: 1fr;
+  }
+
+  .binding-item {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .form-actions {

@@ -28,7 +28,7 @@ public class KnowledgeRelation {
     @Column(name = "relation_type", nullable = false, length = 50)
     private String relationType;  // RESPONSIBLE_FOR, DEPENDS_ON, PREREQUISITE, RELATED_TO
 
-    @Column(precision = 3, scale = 2)
+    @Column
     private Double confidence = 0.5;
 
     @Column(name = "create_time")

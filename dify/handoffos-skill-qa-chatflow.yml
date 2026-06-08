@@ -1,0 +1,172 @@
+app:
+  description: HandoffOS RAG Q&A Chatflow. HandoffOS retrieves Dify Knowledge chunks first and passes retrieved_context into this app.
+  icon: 💬
+  icon_background: '#EFF6FF'
+  mode: advanced-chat
+  name: HandoffOS Skill QA
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.3.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+  graph:
+    edges:
+      - data:
+          isInIteration: false
+          sourceType: start
+          targetType: llm
+        id: start-qa_llm
+        source: start
+        sourceHandle: source
+        target: qa_llm
+        targetHandle: target
+        type: custom
+      - data:
+          isInIteration: false
+          sourceType: llm
+          targetType: answer
+        id: qa_llm-answer
+        source: qa_llm
+        sourceHandle: source
+        target: answer
+        targetHandle: target
+        type: custom
+    nodes:
+      - data:
+          desc: ''
+          selected: false
+          title: Start
+          type: start
+          variables:
+            - label: skill_name
+              max_length: 200
+              options: []
+              required: true
+              type: text-input
+              variable: skill_name
+            - label: dataset_id
+              max_length: 200
+              options: []
+              required: true
+              type: text-input
+              variable: dataset_id
+            - label: retrieved_context
+              max_length: 30000
+              options: []
+              required: false
+              type: paragraph
+              variable: retrieved_context
+            - label: citations
+              max_length: 4000
+              options: []
+              required: false
+              type: paragraph
+              variable: citations
+        height: 190
+        id: start
+        position:
+          x: 80
+          y: 260
+        positionAbsolute:
+          x: 80
+          y: 260
+        selected: false
+        type: custom
+        width: 244
+      - data:
+          context:
+            enabled: false
+            variable_selector: []
+          desc: ''
+          memory:
+            role_prefix:
+              assistant: ''
+              user: ''
+            window:
+              enabled: true
+              size: 6
+          model:
+            completion_params:
+              temperature: 0.1
+            mode: chat
+            name: gpt-4o-mini
+            provider: openai
+          prompt_template:
+            - id: system-prompt
+              role: system
+              text: |-
+                你是团队交接问答助手。只能基于 retrieved_context 回答。
+
+                Skill: {{#start.skill_name#}}
+                Dataset ID: {{#start.dataset_id#}}
+                引用来源: {{#start.citations#}}
+
+                检索上下文:
+                {{#start.retrieved_context#}}
+
+                要求：
+                1. 先给出直接答案。
+                2. 如果涉及流程，用步骤列出。
+                3. 风险点用“风险：”标出。
+                4. 有依据的结论标注引用编号，如 [1]。
+                5. 如果 retrieved_context 为空或不足，回答“当前知识库没有足够信息”，并说明需要补充什么资料。
+                6. 不要编造负责人、命令、日期、链接或上线结论。
+            - id: user-prompt
+              role: user
+              text: '{{#sys.query#}}'
+          selected: false
+          title: Grounded Answer
+          type: llm
+          variables: []
+          vision:
+            enabled: false
+        height: 98
+        id: qa_llm
+        position:
+          x: 420
+          y: 260
+        positionAbsolute:
+          x: 420
+          y: 260
+        selected: false
+        type: custom
+        width: 244
+      - data:
+          answer: '{{#qa_llm.text#}}'
+          desc: ''
+          selected: false
+          title: Answer
+          type: answer
+          variables: []
+        height: 100
+        id: answer
+        position:
+          x: 760
+          y: 260
+        positionAbsolute:
+          x: 760
+          y: 260
+        selected: false
+        type: custom
+        width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.9

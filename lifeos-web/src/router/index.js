@@ -11,7 +11,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      redirect: '/dashboard'
+      redirect: '/skill'
     },
     {
       path: '/dashboard',
@@ -49,6 +49,11 @@ const router = createRouter({
       component: () => import('../views/skill/index.vue')
     },
     {
+      path: '/admin/ai',
+      name: 'admin-ai',
+      component: () => import('../views/admin/ai.vue')
+    },
+    {
       path: '/user',
       name: 'user',
       component: () => import('../views/user/index.vue')
@@ -62,7 +67,7 @@ router.beforeEach((to, from, next) => {
   if (to.path !== '/login' && !token) {
     next('/login')
   } else if (to.path === '/login' && token) {
-    next('/dashboard')
+    next('/skill')
   } else {
     next()
   }

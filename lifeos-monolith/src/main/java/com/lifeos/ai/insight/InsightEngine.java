@@ -240,7 +240,7 @@ public class InsightEngine {
                                     List<TopicCluster> clusters,
                                     List<LearningPattern> patterns) {
         if (!aiProperties.hasApiKey()) {
-            return generateMockSummary(period, statistics, clusters, patterns);
+            throw new IllegalStateException("AI API key is not configured");
         }
 
         try {
@@ -249,7 +249,7 @@ public class InsightEngine {
 
         } catch (Exception e) {
             log.error("Failed to generate summary via LLM: {}", e.getMessage());
-            return generateMockSummary(period, statistics, clusters, patterns);
+            throw new IllegalStateException("Failed to generate summary via LLM: " + e.getMessage(), e);
         }
     }
 
@@ -320,38 +320,4 @@ public class InsightEngine {
         return root.path("choices").get(0).path("message").path("content").asText();
     }
 
-    /**
-     * Generate mock summary for development
-     */
-    private String generateMockSummary(String period,
-                                        Map<String, Integer> statistics,
-                                        List<TopicCluster> clusters,
-                                        List<LearningPattern> patterns) {
-        StringBuilder summary = new StringBuilder();
-
-        summary.append(String.format("%s您共记录了 %d 篇笔记，总计 %d 字。",
-                period,
-                statistics.get("totalNotes"),
-                statistics.get("totalWords")));
-
-        if (!clusters.isEmpty()) {
-            TopicCluster topCluster = clusters.get(0);
-            summary.append(String.format("学习重点集中在「%s」领域。", topCluster.getTopicName()));
-        }
-
-        double avgScore = patterns.stream()
-                .mapToDouble(LearningPattern::getScore)
-                .average()
-                .orElse(0.5);
-
-        if (avgScore > 0.7) {
-            summary.append("学习习惯良好，继续保持！");
-        } else if (avgScore > 0.5) {
-            summary.append("学习习惯尚可，还有提升空间。");
-        } else {
-            summary.append("建议调整学习习惯，提高学习效率。");
-        }
-
-        return summary.toString();
-    }
 }

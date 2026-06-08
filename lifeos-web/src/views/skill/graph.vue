@@ -1,131 +1,114 @@
 <template>
-  <div class="knowledge-graph-page">
-    <div class="graph-container">
-      <div class="graph-header">
-        <h2>🕸️ 知识图谱</h2>
-        <p class="subtitle">实体关系可视化</p>
-        <div class="stats">
-          <span>实体: {{ stats.entityCount }}</span>
-          <span>关系: {{ stats.relationCount }}</span>
-          <span v-if="conflicts.length > 0" class="conflict-badge">⚠️ {{ conflicts.length }} 个冲突</span>
-        </div>
+  <div class="page-shell graph-page">
+    <section class="page-header">
+      <div>
+        <p class="eyebrow">知识图谱</p>
+        <h1>查看交接知识中的实体、关系和冲突。</h1>
+        <p>辅助展示 Skill 资料中的负责人、项目、流程和概念关系，用于发现交接材料的结构缺口。</p>
       </div>
+      <div class="graph-stats">
+        <article><strong>{{ stats.entityCount }}</strong><span>实体</span></article>
+        <article><strong>{{ stats.relationCount }}</strong><span>关系</span></article>
+        <article><strong>{{ conflicts.length }}</strong><span>冲突</span></article>
+      </div>
+    </section>
 
-      <div class="graph-content">
-        <div class="graph-canvas" ref="graphCanvas">
-          <svg :width="canvasWidth" :height="canvasHeight">
-            <!-- Relations (edges) -->
-            <g class="relations">
-              <line
-                v-for="(relation, index) in visualRelations"
-                :key="'rel-' + index"
-                :x1="relation.x1"
-                :y1="relation.y1"
-                :x2="relation.x2"
-                :y2="relation.y2"
-                :stroke="getRelationColor(relation.type)"
+    <section class="graph-layout">
+      <article class="graph-canvas panel">
+        <svg :width="canvasWidth" :height="canvasHeight" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">
+          <g class="relations">
+            <line
+              v-for="(relation, index) in visualRelations"
+              :key="'rel-' + index"
+              :x1="relation.x1"
+              :y1="relation.y1"
+              :x2="relation.x2"
+              :y2="relation.y2"
+              :stroke="getRelationColor(relation.type)"
+              stroke-width="2"
+              :opacity="relation.confidence"
+            />
+            <text
+              v-for="(relation, index) in visualRelations"
+              :key="'rel-text-' + index"
+              :x="(relation.x1 + relation.x2) / 2"
+              :y="(relation.y1 + relation.y2) / 2"
+              class="relation-label"
+              text-anchor="middle"
+            >
+              {{ getRelationLabel(relation.type) }}
+            </text>
+          </g>
+
+          <g class="entities">
+            <g
+              v-for="(entity, index) in visualEntities"
+              :key="'entity-' + index"
+              :transform="`translate(${entity.x}, ${entity.y})`"
+              class="entity-node"
+              @click="selectEntity(entity)"
+            >
+              <circle
+                :r="30"
+                :fill="getEntityColor(entity.type)"
+                :opacity="entity.confidence"
+                stroke="#fff"
                 stroke-width="2"
-                :opacity="relation.confidence"
               />
-              <text
-                v-for="(relation, index) in visualRelations"
-                :key="'rel-text-' + index"
-                :x="(relation.x1 + relation.x2) / 2"
-                :y="(relation.y1 + relation.y2) / 2"
-                class="relation-label"
-                text-anchor="middle"
-              >
-                {{ getRelationLabel(relation.type) }}
+              <text text-anchor="middle" dy="5" class="entity-label" fill="#fff">
+                {{ entity.name.substring(0, 4) }}
               </text>
             </g>
+          </g>
+        </svg>
 
-            <!-- Entities (nodes) -->
-            <g class="entities">
-              <g
-                v-for="(entity, index) in visualEntities"
-                :key="'entity-' + index"
-                :transform="`translate(${entity.x}, ${entity.y})`"
-                @click="selectEntity(entity)"
-                class="entity-node"
-              >
-                <circle
-                  :r="30"
-                  :fill="getEntityColor(entity.type)"
-                  :opacity="entity.confidence"
-                  stroke="#fff"
-                  stroke-width="2"
-                />
-                <text
-                  text-anchor="middle"
-                  dy="5"
-                  class="entity-label"
-                  fill="#fff"
-                >
-                  {{ entity.name.substring(0, 4) }}
-                </text>
-              </g>
-            </g>
-          </svg>
-
-          <div v-if="!graphData.entities || graphData.entities.length === 0" class="empty-state">
-            <p>📊 暂无知识图谱数据</p>
-            <p class="hint">请先构建知识图谱</p>
-          </div>
+        <div v-if="!graphData.entities || graphData.entities.length === 0" class="empty-state">
+          暂无知识图谱数据。请先接入并解析交接资料。
         </div>
+      </article>
 
-        <div class="graph-sidebar">
+      <aside class="graph-sidebar">
+        <article class="panel">
+          <p class="section-label">图例</p>
           <div class="legend">
-            <h3>图例</h3>
-            <div class="legend-item">
-              <span class="legend-color" style="background: #667eea"></span>
-              <span>人员 (PERSON)</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color" style="background: #f093fb"></span>
-              <span>项目 (PROJECT)</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color" style="background: #4facfe"></span>
-              <span>流程 (PROCESS)</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color" style="background: #43e97b"></span>
-              <span>概念 (CONCEPT)</span>
+            <div v-for="item in legendItems" :key="item.label" class="legend-item">
+              <span class="legend-color" :style="{ background: item.color }"></span>
+              <span>{{ item.label }}</span>
             </div>
           </div>
+        </article>
 
-          <div v-if="selectedEntity" class="entity-detail">
-            <h3>实体详情</h3>
-            <p><strong>名称:</strong> {{ selectedEntity.entityName }}</p>
-            <p><strong>类型:</strong> {{ selectedEntity.entityType }}</p>
-            <p><strong>描述:</strong> {{ selectedEntity.description || '无' }}</p>
-            <p><strong>置信度:</strong> {{ (selectedEntity.confidence * 100).toFixed(0) }}%</p>
-          </div>
+        <article v-if="selectedEntity" class="panel">
+          <p class="section-label">实体详情</p>
+          <h2>{{ selectedEntity.entityName }}</h2>
+          <p><strong>类型：</strong>{{ selectedEntity.entityType }}</p>
+          <p><strong>描述：</strong>{{ selectedEntity.description || '暂无描述' }}</p>
+          <p><strong>置信度：</strong>{{ (selectedEntity.confidence * 100).toFixed(0) }}%</p>
+        </article>
 
-          <div v-if="conflicts.length > 0" class="conflicts-panel">
-            <h3>⚠️ 冲突检测</h3>
-            <div v-for="(conflict, index) in conflicts" :key="index" class="conflict-item">
+        <article v-if="conflicts.length > 0" class="panel">
+          <p class="section-label">冲突检测</p>
+          <div class="conflict-list">
+            <article v-for="(conflict, index) in conflicts" :key="index">
               <div class="conflict-header">
                 <span :class="['conflict-type', conflict.conflictType.toLowerCase()]">
                   {{ conflict.conflictType }}
                 </span>
-                <span class="conflict-severity">
-                  严重度: {{ (conflict.severity * 100).toFixed(0) }}%
-                </span>
+                <span>严重度 {{ (conflict.severity * 100).toFixed(0) }}%</span>
               </div>
-              <p class="conflict-desc">{{ conflict.description }}</p>
-              <p class="conflict-recommendation">💡 {{ conflict.recommendation }}</p>
-            </div>
+              <p>{{ conflict.description }}</p>
+              <small>{{ conflict.recommendation }}</small>
+            </article>
           </div>
-        </div>
-      </div>
-    </div>
+        </article>
+      </aside>
+    </section>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
-import axios from 'axios'
+import { computed, onMounted, ref } from 'vue'
+import request from '@/api/request'
 
 export default {
   name: 'KnowledgeGraph',
@@ -142,6 +125,27 @@ export default {
     const canvasWidth = ref(800)
     const canvasHeight = ref(600)
 
+    const entityColors = {
+      PERSON: '#2563eb',
+      PROJECT: '#0f766e',
+      PROCESS: '#b45309',
+      CONCEPT: '#475569'
+    }
+
+    const relationColors = {
+      RESPONSIBLE_FOR: '#2563eb',
+      DEPENDS_ON: '#b45309',
+      PREREQUISITE: '#0f766e',
+      RELATED_TO: '#64748b'
+    }
+
+    const legendItems = [
+      { label: '人员 PERSON', color: entityColors.PERSON },
+      { label: '项目 PROJECT', color: entityColors.PROJECT },
+      { label: '流程 PROCESS', color: entityColors.PROCESS },
+      { label: '概念 CONCEPT', color: entityColors.CONCEPT }
+    ]
+
     const stats = computed(() => ({
       entityCount: graphData.value.entities?.length || 0,
       relationCount: graphData.value.relations?.length || 0
@@ -150,7 +154,6 @@ export default {
     const visualEntities = computed(() => {
       if (!graphData.value.entities) return []
 
-      // Simple circular layout
       const entities = graphData.value.entities
       const centerX = canvasWidth.value / 2
       const centerY = canvasHeight.value / 2
@@ -174,9 +177,7 @@ export default {
       return graphData.value.relations.map(relation => {
         const source = visualEntities.value.find(e => e.id === relation.sourceEntityId)
         const target = visualEntities.value.find(e => e.id === relation.targetEntityId)
-
         if (!source || !target) return null
-
         return {
           ...relation,
           x1: source.x,
@@ -185,57 +186,31 @@ export default {
           y2: target.y,
           type: relation.relationType
         }
-      }).filter(r => r !== null)
+      }).filter(Boolean)
     })
 
     const loadGraph = async () => {
       try {
-        const response = await axios.get(`/ai/knowledge/graph/${props.skillId}`)
-        if (response.data.code === 200) {
-          graphData.value = response.data.data
-        }
+        graphData.value = await request.get(`/ai/knowledge/graph/${props.skillId}`)
       } catch (error) {
         console.error('Failed to load knowledge graph:', error)
       }
     }
 
-    const getEntityColor = (type) => {
-      const colors = {
-        PERSON: '#667eea',
-        PROJECT: '#f093fb',
-        PROCESS: '#4facfe',
-        CONCEPT: '#43e97b'
-      }
-      return colors[type] || '#999'
-    }
-
-    const getRelationColor = (type) => {
-      const colors = {
-        RESPONSIBLE_FOR: '#667eea',
-        DEPENDS_ON: '#f093fb',
-        PREREQUISITE: '#4facfe',
-        RELATED_TO: '#43e97b'
-      }
-      return colors[type] || '#999'
-    }
-
-    const getRelationLabel = (type) => {
-      const labels = {
-        RESPONSIBLE_FOR: '负责',
-        DEPENDS_ON: '依赖',
-        PREREQUISITE: '前置',
-        RELATED_TO: '相关'
-      }
-      return labels[type] || type
-    }
+    const getEntityColor = (type) => entityColors[type] || '#64748b'
+    const getRelationColor = (type) => relationColors[type] || '#94a3b8'
+    const getRelationLabel = (type) => ({
+      RESPONSIBLE_FOR: '负责',
+      DEPENDS_ON: '依赖',
+      PREREQUISITE: '前置',
+      RELATED_TO: '相关'
+    }[type] || type)
 
     const selectEntity = (entity) => {
       selectedEntity.value = entity
     }
 
-    onMounted(() => {
-      loadGraph()
-    })
+    onMounted(loadGraph)
 
     return {
       graphData,
@@ -246,6 +221,7 @@ export default {
       stats,
       visualEntities,
       visualRelations,
+      legendItems,
       getEntityColor,
       getRelationColor,
       getRelationLabel,
@@ -256,196 +232,136 @@ export default {
 </script>
 
 <style scoped>
-.knowledge-graph-page {
-  padding: 20px;
-  background: #f8f9fa;
-  min-height: 100vh;
+.graph-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
 }
 
-.graph-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+.graph-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(90px, 1fr));
+  gap: 10px;
 }
 
-.graph-header {
-  padding: 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+.graph-stats article {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  padding: 13px;
 }
 
-.graph-header h2 {
-  margin: 0 0 8px 0;
+.graph-stats strong {
+  display: block;
+  font-size: 24px;
+  color: var(--navy);
 }
 
-.subtitle {
-  margin: 0 0 12px 0;
-  opacity: 0.9;
-}
-
-.stats {
-  display: flex;
-  gap: 20px;
-  font-size: 14px;
-}
-
-.conflict-badge {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 4px 12px;
-  border-radius: 12px;
-}
-
-.graph-content {
-  display: flex;
-  height: 700px;
+.graph-stats span {
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
 .graph-canvas {
-  flex: 1;
   position: relative;
-  background: #fafafa;
+  min-height: 640px;
   overflow: hidden;
 }
 
 .graph-canvas svg {
+  width: 100%;
+  height: min(620px, 70vh);
   display: block;
-  margin: 50px auto;
+  background: var(--panel-soft);
 }
 
 .entity-node {
   cursor: pointer;
-  transition: all 0.3s;
 }
 
 .entity-node:hover circle {
-  r: 35;
-  filter: brightness(1.1);
+  filter: brightness(1.08);
 }
 
 .entity-label {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   pointer-events: none;
 }
 
 .relation-label {
   font-size: 11px;
-  fill: #666;
+  fill: var(--text-muted);
   pointer-events: none;
 }
 
-.empty-state {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  color: #999;
-}
-
-.hint {
-  font-size: 14px;
-  margin-top: 8px;
-}
-
 .graph-sidebar {
-  width: 300px;
-  padding: 24px;
-  background: white;
-  border-left: 1px solid #e0e0e0;
-  overflow-y: auto;
+  display: grid;
+  gap: 16px;
+  align-content: start;
 }
 
-.legend h3,
-.entity-detail h3,
-.conflicts-panel h3 {
-  margin: 0 0 16px 0;
-  font-size: 16px;
+.legend {
+  display: grid;
+  gap: 12px;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-  font-size: 14px;
+  gap: 10px;
+  color: var(--text-muted);
 }
 
 .legend-color {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
 }
 
-.entity-detail {
-  margin-top: 32px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
+.conflict-list {
+  display: grid;
+  gap: 10px;
 }
 
-.entity-detail p {
-  margin: 8px 0;
-  font-size: 14px;
-}
-
-.conflicts-panel {
-  margin-top: 32px;
-}
-
-.conflict-item {
+.conflict-list article {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
   padding: 12px;
-  background: #fff3cd;
-  border-left: 4px solid #ffc107;
-  border-radius: 4px;
-  margin-bottom: 12px;
 }
 
 .conflict-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .conflict-type {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
-  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #fef3c7;
+  color: var(--amber);
+  font-weight: 700;
 }
 
-.conflict-type.contradiction {
-  background: #dc3545;
-  color: white;
+.conflict-list p {
+  margin: 10px 0;
 }
 
-.conflict-type.inconsistency {
-  background: #ffc107;
-  color: #333;
+.conflict-list small {
+  color: var(--text-muted);
 }
 
-.conflict-type.ambiguity {
-  background: #17a2b8;
-  color: white;
-}
+@media (max-width: 980px) {
+  .graph-layout {
+    grid-template-columns: 1fr;
+  }
 
-.conflict-severity {
-  font-size: 12px;
-  color: #666;
-}
-
-.conflict-desc {
-  font-size: 13px;
-  margin: 8px 0;
-}
-
-.conflict-recommendation {
-  font-size: 12px;
-  color: #666;
-  font-style: italic;
+  .graph-stats {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

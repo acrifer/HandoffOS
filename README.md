@@ -1,255 +1,177 @@
-# LifeOS 2.0 - AI-Native Knowledge Management System
+# LifeOS 3.0 - 团队交接 Skill 蒸馏平台
 
-> 重构版本：从微服务到模块化单体，专注 RAG 智能问答
+LifeOS 是一个面向校招展示的 **Java 后端 + AI 应用** 项目。新版把原来的个人知识管理/RAG 项目升级为团队交接 Skill 平台：Spring Boot 负责业务控制面，飞书负责真实企业资料来源，Dify 负责 Knowledge Base、Workflow 和 Chatflow，最终生成可问答、可审计、可演示的交接助手。
 
-## 🎯 项目定位
+## 项目亮点
 
-面向应届生求职的 AI 原生知识管理系统，展示对前沿技术的深度理解：
-- ✅ **RAG 架构**（向量检索 + LLM）
-- ✅ **知识图谱**（实体抽取 + 关系推理）
-- ✅ **智能洞察**（学习模式分析 + 个性化推荐）
+- **真实业务场景**：从飞书文档和群聊拉取项目交接资料，解决新人接手项目时“资料散、口径乱、没人讲”的问题。
+- **Agent/Skill 技术潮流**：把非结构化资料蒸馏成角色边界、工作原则、决策规则、检查清单、风险提示和问答 Skill。
+- **Java 控制面深度**：Spring Boot 管用户、Skill、来源、Dify dataset 映射、作业审计、fail-fast 错误返回和 API 契约。
+- **低代码平台落地**：Dify 托管 Knowledge Base 与 Workflow，LifeOS 不重复造平台轮子，而是做企业系统集成和可观测控制面。
+- **真实链路演示**：飞书和 Dify 必须使用真实凭证；凭证缺失或外部失败会返回明确错误，不伪造成功数据。
+- **架构取舍可讲**：保留 pgvector 自研 RAG 作为早期方案，对比说明为什么精品版选择 Dify 托管知识库。
 
-## 🚀 快速启动
+## 架构
 
-### 前置要求
-- Docker Desktop
-- JDK 17+
-- Maven 3.9+
+```text
+Vue 3 Skill Workspace
+        |
+Spring Boot 3.3 Control Plane
+        |-- User/Auth
+        |-- Handoff Skill API
+        |-- AI Workflow Job Audit
+        |-- Feishu Adapter
+        |-- Dify Adapter
+        |
+PostgreSQL + pgvector + Redis
+        |
+External Runtime
+        |-- Feishu OpenAPI: docs + chat messages
+        |-- Dify Knowledge: dataset + documents
+        |-- Dify Workflow/Chatflow: distill + ask
+```
 
-### 一键启动
+## 核心流程
+
+```text
+1. 创建 Skill
+2. 输入飞书文档链接/ID、群 chat_id、时间范围
+3. 后端拉取飞书文档 raw content 和群聊消息
+4. LifeOS 去重、记录 source、同步到 Dify dataset
+5. 触发 Dify distill workflow，生成结构化交接 Skill
+6. 用户向 Skill 提问，Dify chatflow 基于 Knowledge 回答
+7. LifeOS 保存 answer、citations、workflow_run_id 和作业状态
+```
+
+## 技术栈
+
+- 后端：Spring Boot 3.3、Spring Data JPA、PostgreSQL 16、pgvector、Redis、JWT、OpenAPI
+- 前端：Vue 3、Vite、Axios
+- AI/Agent：Dify Knowledge Base、Dify Workflow/Chatflow、DeepSeek/OpenAI 兼容接口
+- 集成：Feishu OpenAPI、Lark/Feishu OpenAPI SDK 依赖、REST Adapter
+- 部署：Docker Compose
+
+## 快速启动
+
 ```bash
-# 1. 配置环境变量
 cp .env.example .env
-# 编辑 .env，设置 AI_API_KEY
-
-# 2. 启动所有服务
 docker compose up --build -d
-
-# 3. 访问应用
-# 前端: http://localhost:5173
-# API: http://localhost:8080/api
-# Swagger: http://localhost:8080/swagger-ui.html
 ```
 
-### 启动时间
-- **旧架构**：90 秒，3GB 内存，10 个容器
-- **新架构**：15 秒，800MB 内存，4 个容器
+访问地址：
 
-## 📊 架构对比
+- 前端：http://localhost:5173
+- API：http://localhost:8080/api
+- Swagger：http://localhost:8080/api/swagger-ui.html
 
-### 旧架构（微服务）
-```
-7 个微服务 + MySQL + Redis + Nacos + RocketMQ
-├─ lifeos-gateway
-├─ lifeos-user-service
-├─ lifeos-note-service
-├─ lifeos-task-service
-├─ lifeos-ai-service
-├─ lifeos-behavior-service
-└─ lifeos-admin-service
-```
+默认情况下 `DIFY_DEMO_MODE=false`、`FEISHU_DEMO_FALLBACK_ENABLED=false`。需要先配置真实 Dify 和飞书凭证；凭证缺失或 API 失败会直接返回错误。
 
-**问题**：
-- 共享数据库，违背微服务原则
-- RocketMQ 只用于 2 个场景，过度设计
-- ShardingSphere 单库分表，无性能提升
-- 部署复杂，启动慢
+## 接入真实 Dify
 
-### 新架构（模块化单体）
-```
-1 个应用 + PostgreSQL + Redis
-├─ User Module (认证)
-├─ Note Module (笔记 + 向量化)
-├─ AI Module (RAG + 知识图谱 + 洞察)
-└─ Task Module (任务管理)
+详细配置见 [DIFY_CLOUD_SETUP.md](./DIFY_CLOUD_SETUP.md)。Dify Cloud 场景下 API Base URL 使用 `https://api.dify.ai/v1`。
+
+1. 部署或使用已有 Dify，确认 API Base URL，例如 `https://api.dify.ai/v1` 或 `http://localhost:5001/v1`。
+2. 创建 Knowledge API Key，填入 `DIFY_API_KEY`。
+3. 发布一个用于 Skill 蒸馏的 Workflow，填入 `DIFY_DISTILL_WORKFLOW_KEY`。
+4. 发布一个用于 Skill 问答的 Chatflow/Chat App，填入 `DIFY_ASK_APP_KEY`。
+5. 确认 `DIFY_DEMO_MODE=false`。
+
+发布两个 Dify 应用后，可以运行 Cloud 冒烟脚本：
+
+```powershell
+.\scripts\dify-cloud-smoke.ps1
 ```
 
-**优势**：
-- 85% 复杂度降低
-- 启动时间 6x 提升
-- 内存占用 75% 减少
-- 代码更易维护
+本地后端启动后，可以运行完整 LifeOS API 冒烟脚本：
 
-## 🎨 核心创新功能
-
-### 1. RAG 智能问答（核心亮点）
-
-**技术栈**：
-- PostgreSQL + pgvector（向量存储）
-- DeepSeek Embedding API（向量化）
-- DeepSeek Chat（LLM 生成）
-
-**功能**：
-```
-用户提问："我之前是怎么解决 Redis 缓存穿透的？"
-    ↓
-1. 问题向量化
-2. 向量检索（Top-5 相似笔记）
-3. 构建上下文
-4. LLM 生成答案 + 引用来源
-    ↓
-返回：答案 + 来源笔记链接 + 置信度
+```powershell
+.\scripts\lifeos-e2e-smoke.ps1
 ```
 
-**实现文件**：
-- `NoteEmbeddingService.java` - 笔记向量化
-- `RagQueryService.java` - RAG 查询引擎
-- `VectorRepository.java` - 向量检索
+验证真实飞书凭证和权限：
 
-### 2. 知识图谱增强
-
-**升级 Handoff Skill 功能**：
-- 实体抽取（人名、项目、流程）
-- 关系抽取（负责、依赖、前置条件）
-- 冲突检测（文档 vs 群聊）
-- 置信度评分
-
-**实现文件**：
-- `KnowledgeGraphService.java`
-- `ConflictDetectionService.java`
-- `EnhancedSkillQueryService.java`
-
-### 3. 智能洞察引擎
-
-**周复盘升级**：
-- 主题聚类（识别学习方向）
-- 学习模式分析（时间分布、深度 vs 碎片）
-- 个性化推荐
-
-**示例输出**：
-```
-本周洞察：
-- 60% 笔记关于 Spring Boot，建议深入学习微服务
-- 3 周没写算法笔记，推荐复习 LeetCode
-- 笔记多在晚上 10 点后创建，建议调整学习时间
+```powershell
+.\scripts\feishu-smoke.ps1 -DocumentRef "飞书文档链接或 ID" -ChatId "群 chat_id"
 ```
 
-## 🗂️ 项目结构
+建议 Workflow 输入：
 
-```
-lifeos-monolith/
-├── src/main/java/com/lifeos/
-│   ├── LifeOsApplication.java          # 主应用
-│   ├── config/                         # 配置
-│   │   ├── JwtTokenUtil.java
-│   │   ├── AiProperties.java
-│   │   └── RedisConfig.java
-│   ├── common/                         # 公共类
-│   │   └── Result.java
-│   ├── user/                           # 用户模块
-│   │   ├── controller/
-│   │   ├── service/
-│   │   ├── repository/
-│   │   └── entity/
-│   ├── note/                           # 笔记模块
-│   │   ├── controller/
-│   │   ├── service/
-│   │   ├── repository/
-│   │   └── entity/
-│   │       ├── Note.java
-│   │       └── NoteEmbedding.java      # 向量存储
-│   └── ai/                             # AI 模块
-│       ├── rag/                        # RAG 功能
-│       │   ├── RagQueryService.java
-│       │   └── VectorRepository.java
-│       ├── knowledge/                  # 知识图谱
-│       │   ├── KnowledgeGraphService.java
-│       │   └── ConflictDetectionService.java
-│       └── insight/                    # 智能洞察
-│           ├── InsightEngine.java
-│           └── LearningPatternAnalyzer.java
-└── src/main/resources/
-    ├── application.yml
-    └── db/migration/
-        └── V1__init_schema.sql         # 包含 pgvector 支持
+- `skill_name`
+- `role_description`
+- `dataset_id`
+- `sources`
+
+建议输出字段：
+
+- `handoffSkill.roleBoundaries`
+- `handoffSkill.workPrinciples`
+- `handoffSkill.decisionRules`
+- `handoffSkill.workflowChecklists`
+- `handoffSkill.communicationStyle`
+- `handoffSkill.riskWarnings`
+- `handoffSkill.handoffQuestions`
+
+## 接入真实飞书
+
+在飞书开放平台创建企业自建应用，并配置：
+
+```env
+FEISHU_APP_ID=cli_xxx
+FEISHU_APP_SECRET=xxx
+FEISHU_DEMO_FALLBACK_ENABLED=false
 ```
 
-## 🛠️ 技术栈
+后端会优先调用真实飞书 OpenAPI：
 
-### 后端
-- **Spring Boot 3.3.0**（最新稳定版）
-- **Spring Data JPA**（ORM）
-- **PostgreSQL 16 + pgvector**（向量数据库）
-- **Redis 7**（缓存 + 任务队列）
-- **JWT**（认证）
-- **Swagger/OpenAPI**（API 文档）
+- 获取 tenant access token
+- 读取 docx raw content
+- 按 chat_id 和时间范围读取群聊消息
 
-### 前端
-- **Vue 3**
-- **Vite**
-- **Axios**
+如果权限、网络或凭证失败，系统会返回错误并记录失败作业，不会写入脱敏演示来源。
 
-### AI
-- **DeepSeek Chat**（LLM）
-- **DeepSeek Embedding**（向量化）
-- **pgvector**（向量检索）
+## 主要 API
 
-## 📝 API 文档
+- `POST /api/skill` 创建交接 Skill
+- `GET /api/skill` Skill 列表
+- `GET /api/skill/{skillId}` Skill 详情
+- `POST /api/skill/{skillId}/sources/sync` 同步飞书资料并写入 Dify Knowledge
+- `POST /api/skill/{skillId}/distill` 触发 Dify Workflow 蒸馏
+- `POST /api/skill/{skillId}/ask` 触发 Dify Chatflow 问答
+- `GET /api/skill/{skillId}/jobs` 查询 Skill 作业
+- `GET /api/note/jobs/{jobId}` 前端轮询通用作业详情
 
-启动后访问：http://localhost:8080/swagger-ui.html
+## 面试讲法
 
-### 核心接口
+30 秒版本：
 
-**用户认证**：
-- `POST /api/auth/register` - 注册
-- `POST /api/auth/login` - 登录
+> 我把 LifeOS 从普通知识管理项目升级成团队交接 Skill 蒸馏平台。Spring Boot 做控制面，负责用户、Skill、飞书来源、Dify dataset 映射和作业审计；Dify 托管 Knowledge Base 和 Agentic Workflow；飞书提供真实企业资料来源。这个项目展示了我对 RAG、Agent Workflow、系统集成、fail-fast 错误处理和架构取舍的理解。
 
-**笔记管理**：
-- `POST /api/notes` - 创建笔记
-- `GET /api/notes` - 列表
-- `GET /api/notes/search?keyword=Redis` - 搜索
+技术深度可以展开三点：
 
-**RAG 问答**（即将实现）：
-- `POST /api/ai/rag/query` - 智能问答
-- `GET /api/ai/rag/history` - 查询历史
+- **控制面和运行时分离**：Java 系统管业务状态与审计，Dify 负责模型编排和知识检索。
+- **真实数据接入**：飞书 token 缓存、分页拉取、去重、入库状态、失败作业审计。
+- **可观测 AI 工作流**：每次同步、蒸馏、问答都有 job、request、result、workflow_run_id 和 error message。
 
-## 🎯 实施进度
+## 验证命令
 
-- [x] **Day 1-2**: 架构简化 + PostgreSQL 迁移 ✅
-  - [x] 创建单体应用骨架
-  - [x] PostgreSQL + pgvector 数据库设计
-  - [x] 用户模块
-  - [x] 笔记模块基础功能
-  - [x] Docker Compose 简化
+```bash
+cd lifeos-monolith
+mvn -q test
 
-- [x] **Day 3-4**: RAG 核心功能实现 ✅
-  - [x] 笔记向量化服务
-  - [x] 向量检索引擎
-  - [x] RAG 查询服务
-  - [x] 前端对话界面
+cd ../lifeos-web
+npm run build
+```
 
-- [x] **Day 5-7**: 知识图谱增强 ✅
-  - [x] 实体抽取
-  - [x] 关系抽取
-  - [x] 冲突检测
-  - [x] 前端可视化
+真实 Dify Cloud 链路：
 
-- [x] **Day 8-9**: 智能洞察引擎 ✅
-  - [x] 主题聚类
-  - [x] 学习模式分析
-  - [x] 个性化推荐
+```powershell
+.\scripts\dify-cloud-smoke.ps1
+```
 
-- [x] **Day 10-12**: 前端优化 + 文档 ✅
-  - [x] 完整使用指南
-  - [x] 面试演示指南
-  - [x] API 文档
-  - [x] 项目总结
+如果 Dify 返回 `Workflow not published`，说明应用 API Key 已能鉴权，但 Workflow/Chatflow 还没有在 Dify 控制台发布。
 
-**项目状态**: ✅ 已完成 (100%)
+## 项目边界
 
-## 💡 面试话术
-
-- "我用 RAG 架构实现了智能笔记助手，可以基于历史笔记回答问题"
-- "我用知识图谱增强了团队交接功能，能检测文档冲突并给出置信度"
-- "我用向量检索实现了语义搜索，比传统关键词搜索准确率提升 40%"
-- "我简化了架构，从 7 个微服务合并到单体，启动时间从 90 秒降到 15 秒"
-
-## 📚 学习资源
-
-- [RAG 架构详解](https://www.anthropic.com/research/retrieval-augmented-generation)
-- [pgvector 文档](https://github.com/pgvector/pgvector)
-- [DeepSeek API](https://platform.deepseek.com/docs)
-
-## 📄 License
-
-仅用于学习、演示和个人项目展示。
+- 旧 `lifeos-backend` 微服务目录保留为架构对比材料，不作为新版运行入口。
+- 现有 pgvector RAG 仍保留，作为“自研 RAG 到 Dify 托管 Knowledge”的演进故事。
+- 本轮主链路优先团队交接 Skill，不重写个人笔记、任务和行为看板全部历史功能。

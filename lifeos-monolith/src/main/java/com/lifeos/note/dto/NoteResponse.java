@@ -14,6 +14,9 @@ public class NoteResponse {
     private String tags;
     private String summary;
     private Boolean pinned;
+    private String reviewState;
+    private LocalDateTime nextReviewAt;
+    private LocalDateTime lastReviewedAt;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

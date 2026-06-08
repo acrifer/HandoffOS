@@ -2,13 +2,13 @@
   <div class="task-page">
     <section class="task-hero">
       <div>
-        <p class="eyebrow">任务层</p>
-        <h1>让笔记里的想法真正变成行动。</h1>
+        <p class="eyebrow">交接行动</p>
+        <h1>让交接资料里的结论真正变成行动项。</h1>
         <p>
-          这里保留轻量任务管理，重点是让从笔记提取出来的行动项清晰可见、容易完成。
+          这里保留轻量任务管理，但默认围绕补资料、确认负责人、梳理上线检查和处理知识缺口。
         </p>
       </div>
-      <button class="primary-btn" @click="showCreateModal = true">新建任务</button>
+      <button class="primary-btn" @click="showCreateModal = true">新建行动项</button>
     </section>
 
     <section class="stat-strip">
@@ -18,7 +18,7 @@
       </article>
       <article class="stat-card">
         <strong>{{ derivedCount }}</strong>
-        <span>来自笔记</span>
+        <span>来自资料</span>
       </article>
       <article class="stat-card">
         <strong>{{ completedCount }}</strong>
@@ -31,21 +31,21 @@
         <span>视图</span>
         <select v-model="viewMode">
           <option value="all">全部任务</option>
-          <option value="derived">来自笔记</option>
+          <option value="derived">来自资料</option>
           <option value="manual">手动创建</option>
           <option value="completed">已完成</option>
         </select>
       </label>
       <label>
-        <span>搜索</span>
-        <input v-model="searchKeyword" type="text" placeholder="搜索任务标题或来源笔记" />
+            <span>搜索</span>
+        <input v-model="searchKeyword" type="text" placeholder="搜索行动项标题或来源资料" />
       </label>
     </section>
 
     <section v-if="loading" class="empty-panel">正在加载任务...</section>
     <section v-else-if="filteredTasks.length === 0" class="empty-panel">
-      <h2>当前视图下没有任务</h2>
-      <p>你可以手动创建任务，或者从笔记里提取行动项。</p>
+      <h2>当前视图下没有行动项</h2>
+      <p>你可以手动创建行动项，或者从交接资料里提取后续动作。</p>
     </section>
     <section v-else class="task-grid">
       <article
@@ -57,7 +57,7 @@
         <div class="task-card-top">
           <span class="status-pill" :class="statusClass(task.status)">{{ statusLabel(task.status) }}</span>
           <div class="card-actions">
-            <button v-if="task.status !== 2" class="ghost-btn" @click="completeTask(task.id)">完成</button>
+        <button v-if="task.status !== 2" class="ghost-btn" @click="completeTask(task.id)">完成</button>
             <button class="ghost-btn danger" @click="deleteTask(task.id)">删除</button>
           </div>
         </div>
@@ -66,7 +66,7 @@
         <p class="task-description">{{ task.description || '暂无任务说明。' }}</p>
 
         <div v-if="task.sourceNoteId" class="source-box">
-          <span class="source-label">来源笔记</span>
+          <span class="source-label">来源资料</span>
           <strong>{{ sourceNoteTitle(task.sourceNoteId) }}</strong>
         </div>
 
@@ -95,8 +95,8 @@
           </label>
         </div>
         <label>
-          <span>说明</span>
-          <textarea v-model="newTask.description" rows="4" placeholder="补充任务说明"></textarea>
+            <span>说明</span>
+          <textarea v-model="newTask.description" rows="4" placeholder="补充行动项说明"></textarea>
         </label>
         <label>
           <span>标签</span>
@@ -179,7 +179,7 @@ const fetchNotes = async () => {
   try {
     const notes = await noteApi.getList()
     noteMap.value = notes.reduce((accumulator, note) => {
-      accumulator[String(note.id)] = note.title || '未命名笔记'
+      accumulator[String(note.id)] = note.title || '未命名资料'
       return accumulator
     }, {})
   } catch (error) {
@@ -254,9 +254,9 @@ const statusClass = (status) => {
 
 const sourceNoteTitle = (noteId) => {
   if (!noteId) {
-    return '手动任务'
+      return '手动行动项'
   }
-  return noteMap.value[String(noteId)] || `笔记 #${noteId}`
+  return noteMap.value[String(noteId)] || `资料 #${noteId}`
 }
 
 const splitTags = (value) =>
@@ -294,9 +294,9 @@ onMounted(async () => {
 
 <style scoped>
 .task-page {
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 32px;
+  padding: 24px;
 }
 
 .task-hero {
@@ -304,32 +304,35 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 24px;
   align-items: flex-end;
-  background: linear-gradient(135deg, #111827, #1d4ed8);
-  color: white;
-  border-radius: 28px;
-  padding: 32px;
-  margin-bottom: 20px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .eyebrow {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   font-size: 12px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--blue);
+  font-weight: 800;
 }
 
 .task-hero h1 {
-  margin: 0 0 12px;
-  font-size: 38px;
-  line-height: 1.15;
+  margin: 0 0 10px;
+  font-size: 28px;
+  line-height: 1.18;
   max-width: 760px;
 }
 
 .task-hero p {
   margin: 0;
   max-width: 760px;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--text-muted);
   line-height: 1.7;
 }
 
@@ -345,9 +348,10 @@ onMounted(async () => {
 .task-card,
 .empty-panel,
 .modal-card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .stat-card {
@@ -358,12 +362,12 @@ onMounted(async () => {
 }
 
 .stat-card strong {
-  font-size: 34px;
-  color: #0f172a;
+  font-size: 28px;
+  color: var(--navy);
 }
 
 .stat-card span {
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .task-toolbar {
@@ -381,7 +385,7 @@ onMounted(async () => {
   flex-direction: column;
   gap: 8px;
   font-weight: 600;
-  color: #475569;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
@@ -391,9 +395,9 @@ textarea {
   width: 100%;
   box-sizing: border-box;
   padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel);
   font: inherit;
 }
 
@@ -408,7 +412,10 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.task-card:hover {
+  border-color: var(--border-strong);
 }
 
 .task-card.completed {
@@ -448,15 +455,16 @@ textarea {
 
 .ghost-btn,
 .primary-btn {
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
 .ghost-btn {
-  background: #f8fafc;
+  background: var(--panel-soft);
   color: #334155;
-  border-radius: 12px;
+  border-color: var(--border);
+  border-radius: var(--radius);
   padding: 10px 12px;
 }
 
@@ -465,9 +473,10 @@ textarea {
 }
 
 .primary-btn {
-  background: #1d4ed8;
+  background: var(--blue);
+  border-color: var(--blue);
   color: white;
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 12px 18px;
   font-weight: 700;
 }
@@ -475,19 +484,19 @@ textarea {
 .task-card h3,
 .modal-card h2 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text);
 }
 
 .task-description {
   margin: 0;
-  color: #475569;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 
 .source-box {
   padding: 14px;
-  border-radius: 18px;
-  background: #eff6ff;
+  border-radius: var(--radius);
+  background: var(--blue-soft);
   border: 1px solid #bfdbfe;
 }
 
@@ -504,7 +513,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
@@ -526,13 +535,13 @@ textarea {
 .empty-panel {
   padding: 80px 24px;
   text-align: center;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(15, 23, 42, 0.38);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -558,7 +567,7 @@ textarea {
 
 @media (max-width: 900px) {
   .task-page {
-    padding: 20px;
+    padding: 16px;
   }
 
   .task-hero,

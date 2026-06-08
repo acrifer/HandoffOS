@@ -5,7 +5,7 @@ export const userApi = {
     // Login
     login(data) {
         return request({
-            url: '/user/login',
+            url: '/auth/login',
             method: 'post',
             data
         })
@@ -14,7 +14,7 @@ export const userApi = {
     // Register
     register(data) {
         return request({
-            url: '/user/register',
+            url: '/auth/register',
             method: 'post',
             data
         })

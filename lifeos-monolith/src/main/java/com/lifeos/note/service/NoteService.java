@@ -13,6 +13,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+
 /**
  * Note Service
  */
@@ -30,7 +34,9 @@ public class NoteService {
         note.setTitle(request.getTitle());
         note.setContent(request.getContent());
         note.setTags(request.getTags());
+        note.setSummary(request.getSummary());
         note.setPinned(request.getPinned() != null ? request.getPinned() : false);
+        applyReviewFields(note, request);
 
         note = noteRepository.save(note);
 
@@ -48,9 +54,11 @@ public class NoteService {
         note.setTitle(request.getTitle());
         note.setContent(request.getContent());
         note.setTags(request.getTags());
+        note.setSummary(request.getSummary());
         if (request.getPinned() != null) {
             note.setPinned(request.getPinned());
         }
+        applyReviewFields(note, request);
 
         note = noteRepository.save(note);
 
@@ -92,5 +100,28 @@ public class NoteService {
         NoteResponse response = new NoteResponse();
         BeanUtils.copyProperties(note, response);
         return response;
+    }
+
+    private void applyReviewFields(Note note, NoteRequest request) {
+        if (request.getReviewState() != null && !request.getReviewState().isBlank()) {
+            note.setReviewState(request.getReviewState());
+        }
+        if (request.getNextReviewAt() != null) {
+            note.setNextReviewAt(parseDateTime(request.getNextReviewAt()));
+        }
+        if (request.getLastReviewedAt() != null) {
+            note.setLastReviewedAt(parseDateTime(request.getLastReviewedAt()));
+        }
+    }
+
+    private LocalDateTime parseDateTime(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (DateTimeParseException ignored) {
+            return OffsetDateTime.parse(value).toLocalDateTime();
+        }
     }
 }

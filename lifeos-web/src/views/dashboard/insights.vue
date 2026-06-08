@@ -1,153 +1,115 @@
 <template>
-  <div class="insights-page">
-    <div class="insights-container">
-      <div class="insights-header">
-        <h2>📊 学习洞察</h2>
-        <p class="subtitle">智能分析您的学习模式</p>
-        <div class="period-selector">
-          <button
-            :class="['period-btn', { active: period === 'weekly' }]"
-            @click="loadReport('weekly')"
-          >
-            本周
-          </button>
-          <button
-            :class="['period-btn', { active: period === 'monthly' }]"
-            @click="loadReport('monthly')"
-          >
-            本月
-          </button>
-        </div>
+  <div class="page-shell">
+    <section class="page-header">
+      <div>
+        <p class="eyebrow">知识洞察</p>
+        <h1>从交接资料中观察覆盖度和结构风险。</h1>
+        <p>复用原洞察接口，但把展示重点从个人学习改成资料覆盖、主题分布和后续补充建议。</p>
       </div>
-
-      <div v-if="loading" class="loading">
-        <div class="spinner"></div>
-        <p>正在分析您的学习数据...</p>
+      <div class="period-selector">
+        <button
+          :class="['ghost-btn', { active: period === 'weekly' }]"
+          @click="loadReport('weekly')"
+        >
+          本周
+        </button>
+        <button
+          :class="['ghost-btn', { active: period === 'monthly' }]"
+          @click="loadReport('monthly')"
+        >
+          本月
+        </button>
       </div>
+    </section>
 
-      <div v-else-if="report" class="insights-content">
-        <!-- Overall Score -->
-        <div class="score-card">
-          <div class="score-circle">
-            <svg width="120" height="120">
-              <circle cx="60" cy="60" r="50" fill="none" stroke="#e0e0e0" stroke-width="10" />
-              <circle
-                cx="60"
-                cy="60"
-                r="50"
-                fill="none"
-                :stroke="getScoreColor(report.overallScore)"
-                stroke-width="10"
-                :stroke-dasharray="`${report.overallScore * 314} 314`"
-                transform="rotate(-90 60 60)"
-              />
-            </svg>
-            <div class="score-text">
-              <span class="score-value">{{ (report.overallScore * 100).toFixed(0) }}</span>
-              <span class="score-label">分</span>
-            </div>
-          </div>
-          <div class="score-info">
-            <h3>{{ report.period }}学习评分</h3>
-            <p class="summary">{{ report.summary }}</p>
-          </div>
-        </div>
+    <section v-if="loading" class="empty-state">正在生成知识洞察...</section>
 
-        <!-- Statistics -->
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon">📝</div>
-            <div class="stat-value">{{ report.statistics.totalNotes }}</div>
-            <div class="stat-label">笔记数量</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">✍️</div>
-            <div class="stat-value">{{ formatNumber(report.statistics.totalWords) }}</div>
-            <div class="stat-label">总字数</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">📄</div>
-            <div class="stat-value">{{ report.statistics.avgWordsPerNote }}</div>
-            <div class="stat-label">平均每篇</div>
-          </div>
-        </div>
+    <template v-else-if="report">
+      <section class="metric-grid">
+        <article class="metric-card">
+          <span>覆盖评分</span>
+          <strong>{{ (report.overallScore * 100).toFixed(0) }}</strong>
+        </article>
+        <article class="metric-card">
+          <span>资料数量</span>
+          <strong>{{ report.statistics.totalNotes }}</strong>
+        </article>
+        <article class="metric-card">
+          <span>资料字数</span>
+          <strong>{{ formatNumber(report.statistics.totalWords) }}</strong>
+        </article>
+        <article class="metric-card">
+          <span>平均篇幅</span>
+          <strong>{{ report.statistics.avgWordsPerNote }}</strong>
+        </article>
+      </section>
 
-        <!-- Topic Clusters -->
-        <div class="section">
-          <h3>🎯 主题分布</h3>
-          <div class="topic-clusters">
-            <div
-              v-for="(cluster, index) in report.topicClusters.slice(0, 5)"
-              :key="index"
-              class="cluster-item"
+      <section class="insights-grid">
+        <article class="panel">
+          <p class="section-label">周期摘要</p>
+          <h2>{{ report.period }}资料覆盖</h2>
+          <p class="summary">{{ report.summary }}</p>
+          <div class="score-bar">
+            <span :style="{ width: `${Math.round(report.overallScore * 100)}%` }"></span>
+          </div>
+        </article>
+
+        <article class="panel">
+          <p class="section-label">主题分布</p>
+          <h2>哪些交接主题已有沉淀</h2>
+          <div class="topic-list">
+            <article
+              v-for="cluster in report.topicClusters.slice(0, 6)"
+              :key="cluster.topicName"
             >
-              <div class="cluster-header">
-                <span class="cluster-name">{{ cluster.topicName }}</span>
-                <span class="cluster-count">{{ cluster.noteCount }} 篇</span>
+              <div class="topic-row">
+                <strong>{{ cluster.topicName }}</strong>
+                <span>{{ cluster.noteCount }} 篇</span>
               </div>
-              <div class="cluster-bar">
-                <div
-                  class="cluster-fill"
-                  :style="{ width: (cluster.percentage * 100) + '%' }"
-                ></div>
+              <div class="bar">
+                <span :style="{ width: `${Math.round(cluster.percentage * 100)}%` }"></span>
               </div>
-              <div class="cluster-percentage">{{ (cluster.percentage * 100).toFixed(1) }}%</div>
-            </div>
+            </article>
           </div>
-        </div>
+        </article>
 
-        <!-- Learning Patterns -->
-        <div class="section">
-          <h3>📈 学习模式</h3>
-          <div class="patterns-grid">
-            <div
-              v-for="(pattern, index) in report.patterns"
-              :key="index"
-              class="pattern-card"
-            >
-              <div class="pattern-header">
-                <h4>{{ pattern.description }}</h4>
-                <span :class="['pattern-score', getScoreClass(pattern.score)]">
-                  {{ (pattern.score * 100).toFixed(0) }} 分
-                </span>
+        <article class="panel">
+          <p class="section-label">资料模式</p>
+          <h2>结构完整性线索</h2>
+          <div class="pattern-list">
+            <article v-for="pattern in report.patterns" :key="pattern.description">
+              <div class="topic-row">
+                <strong>{{ pattern.description }}</strong>
+                <em :class="['score-pill', getScoreClass(pattern.score)]">{{ (pattern.score * 100).toFixed(0) }} 分</em>
               </div>
-              <ul class="pattern-insights">
-                <li v-for="(insight, i) in pattern.insights" :key="i">{{ insight }}</li>
+              <ul>
+                <li v-for="insight in pattern.insights" :key="insight">{{ insight }}</li>
               </ul>
-              <div class="pattern-recommendation">
-                💡 {{ pattern.recommendation }}
-              </div>
-            </div>
+              <p>{{ pattern.recommendation }}</p>
+            </article>
           </div>
-        </div>
+        </article>
 
-        <!-- Recommendations -->
-        <div v-if="report.recommendations.length > 0" class="section">
-          <h3>💡 个性化建议</h3>
-          <div class="recommendations">
-            <div
-              v-for="(rec, index) in report.recommendations"
-              :key="index"
-              class="recommendation-item"
-            >
-              <span class="rec-icon">✨</span>
-              <span class="rec-text">{{ rec }}</span>
-            </div>
+        <article class="panel">
+          <p class="section-label">补充建议</p>
+          <h2>下一步资料治理动作</h2>
+          <div class="recommendation-list">
+            <article v-for="rec in report.recommendations" :key="rec">{{ rec }}</article>
+            <p v-if="!report.recommendations.length" class="muted">当前暂无建议，继续补充交接资料后再生成洞察。</p>
           </div>
-        </div>
-      </div>
+        </article>
+      </section>
+    </template>
 
-      <div v-else class="empty-state">
-        <p>📊 暂无学习数据</p>
-        <p class="hint">请先创建一些笔记</p>
-      </div>
-    </div>
+    <section v-else class="empty-state">
+      暂无资料洞察。请先在资料暂存区或 Skill 工作台接入交接资料。
+    </section>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { onMounted, ref } from 'vue'
+import request from '@/api/request'
 
 export default {
   name: 'InsightsView',
@@ -162,25 +124,12 @@ export default {
 
       try {
         const endpoint = selectedPeriod === 'weekly' ? '/ai/insight/weekly' : '/ai/insight/monthly'
-        const response = await axios.get(endpoint)
-
-        if (response.data.code === 200) {
-          report.value = response.data.data
-        } else {
-          console.error('Failed to load report:', response.data.message)
-        }
+        report.value = await request.get(endpoint)
       } catch (error) {
         console.error('Failed to load report:', error)
       } finally {
         loading.value = false
       }
-    }
-
-    const getScoreColor = (score) => {
-      if (score >= 0.8) return '#43e97b'
-      if (score >= 0.6) return '#4facfe'
-      if (score >= 0.4) return '#ffc107'
-      return '#f093fb'
     }
 
     const getScoreClass = (score) => {
@@ -191,9 +140,7 @@ export default {
     }
 
     const formatNumber = (num) => {
-      if (num >= 10000) {
-        return (num / 10000).toFixed(1) + 'w'
-      }
+      if (num >= 10000) return `${(num / 10000).toFixed(1)}w`
       return num
     }
 
@@ -206,7 +153,6 @@ export default {
       loading,
       period,
       loadReport,
-      getScoreColor,
       getScoreClass,
       formatNumber
     }
@@ -215,322 +161,102 @@ export default {
 </script>
 
 <style scoped>
-.insights-page {
-  padding: 20px;
-  background: #f8f9fa;
-  min-height: 100vh;
-}
-
-.insights-container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.insights-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 32px;
-  border-radius: 16px;
-  margin-bottom: 24px;
-}
-
-.insights-header h2 {
-  margin: 0 0 8px 0;
-}
-
-.subtitle {
-  margin: 0 0 20px 0;
-  opacity: 0.9;
-}
-
 .period-selector {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
-.period-btn {
-  padding: 8px 24px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s;
+.period-selector .active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
 }
 
-.period-btn.active {
-  background: white;
-  color: #667eea;
-}
-
-.loading {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid #e0e0e0;
-  border-top-color: #667eea;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 20px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.insights-content {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.score-card {
-  background: white;
-  padding: 32px;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  gap: 32px;
-}
-
-.score-circle {
-  position: relative;
-  width: 120px;
-  height: 120px;
-}
-
-.score-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
-
-.score-value {
-  font-size: 32px;
-  font-weight: 700;
-  color: #333;
-}
-
-.score-label {
-  font-size: 14px;
-  color: #999;
-}
-
-.score-info h3 {
-  margin: 0 0 12px 0;
-  font-size: 24px;
-}
-
-.summary {
-  color: #666;
-  line-height: 1.6;
-}
-
-.stats-grid {
+.insights-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: 0.85fr 1.15fr;
   gap: 16px;
 }
 
-.stat-card {
-  background: white;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  text-align: center;
-}
-
-.stat-icon {
-  font-size: 32px;
-  margin-bottom: 12px;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #333;
-  display: block;
-  margin-bottom: 8px;
-}
-
-.stat-label {
-  color: #999;
-  font-size: 14px;
-}
-
-.section {
-  background: white;
-  padding: 24px;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.section h3 {
-  margin: 0 0 20px 0;
-  font-size: 20px;
-}
-
-.topic-clusters {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.cluster-item {
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.cluster-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.cluster-name {
-  font-weight: 600;
-  color: #333;
-}
-
-.cluster-count {
-  color: #999;
-  font-size: 14px;
-}
-
-.cluster-bar {
+.score-bar,
+.bar {
   height: 8px;
-  background: #e0e0e0;
-  border-radius: 4px;
   overflow: hidden;
-  margin-bottom: 8px;
+  border-radius: 999px;
+  background: var(--bg-muted);
 }
 
-.cluster-fill {
+.score-bar span,
+.bar span {
+  display: block;
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  transition: width 0.5s;
+  border-radius: inherit;
+  background: var(--blue);
 }
 
-.cluster-percentage {
-  text-align: right;
-  font-size: 14px;
-  color: #667eea;
-  font-weight: 600;
-}
-
-.patterns-grid {
+.topic-list,
+.pattern-list,
+.recommendation-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
-.pattern-card {
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  border-left: 4px solid #667eea;
+.topic-list article,
+.pattern-list article,
+.recommendation-list article {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  padding: 13px;
 }
 
-.pattern-header {
+.topic-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.pattern-header h4 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.pattern-score {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.pattern-score.excellent {
-  background: #d4edda;
-  color: #155724;
-}
-
-.pattern-score.good {
-  background: #d1ecf1;
-  color: #0c5460;
-}
-
-.pattern-score.fair {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.pattern-score.poor {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.pattern-insights {
-  margin: 12px 0;
-  padding-left: 20px;
-}
-
-.pattern-insights li {
+  gap: 12px;
   margin-bottom: 8px;
-  color: #666;
-  font-size: 14px;
 }
 
-.pattern-recommendation {
-  margin-top: 12px;
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #667eea;
+.topic-row span,
+.pattern-list p,
+.pattern-list li {
+  color: var(--text-muted);
 }
 
-.recommendations {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.pattern-list ul {
+  margin: 10px 0;
+  padding-left: 18px;
 }
 
-.recommendation-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border-left: 4px solid #43e97b;
+.score-pill {
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
 }
 
-.rec-icon {
-  font-size: 20px;
+.score-pill.excellent,
+.score-pill.good {
+  background: #dcfce7;
+  color: var(--green);
 }
 
-.rec-text {
-  flex: 1;
-  color: #333;
+.score-pill.fair {
+  background: #fef3c7;
+  color: var(--amber);
 }
 
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #999;
+.score-pill.poor {
+  background: #fee2e2;
+  color: var(--red);
 }
 
-.hint {
-  font-size: 14px;
-  margin-top: 8px;
+@media (max-width: 960px) {
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

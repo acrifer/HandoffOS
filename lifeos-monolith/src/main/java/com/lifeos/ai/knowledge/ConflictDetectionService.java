@@ -35,7 +35,7 @@ public class ConflictDetectionService {
         }
 
         if (!aiProperties.hasApiKey()) {
-            return detectMockConflicts(sources);
+            throw new IllegalStateException("AI API key is not configured");
         }
 
         try {
@@ -45,7 +45,7 @@ public class ConflictDetectionService {
 
         } catch (Exception e) {
             log.error("Failed to detect conflicts via LLM: {}", e.getMessage());
-            return detectMockConflicts(sources);
+            throw new IllegalStateException("Failed to detect conflicts via LLM: " + e.getMessage(), e);
         }
     }
 
@@ -160,39 +160,44 @@ public class ConflictDetectionService {
     }
 
     /**
-     * Detect mock conflicts for development
-     */
-    private List<ConflictResult> detectMockConflicts(List<SourceContent> sources) {
-        List<ConflictResult> conflicts = new ArrayList<>();
-
-        // Simple heuristic: if sources have different types, flag as potential conflict
-        Set<String> sourceTypes = new HashSet<>();
-        for (SourceContent source : sources) {
-            sourceTypes.add(source.getSourceType());
-        }
-
-        if (sourceTypes.size() > 1) {
-            ConflictResult conflict = new ConflictResult();
-            conflict.setConflictType("INCONSISTENCY");
-            conflict.setDescription("文档和群聊中的描述可能存在不一致");
-            conflict.setSources(Arrays.asList("文档", "群聊"));
-            conflict.setSeverity(0.6);
-            conflict.setRecommendation("建议以正式文档为准，群聊内容作为补充参考");
-            conflicts.add(conflict);
-        }
-
-        return conflicts;
-    }
-
-    /**
      * Source Content DTO
      */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
     public static class SourceContent {
         private String sourceType;  // DOCUMENT, CHAT
         private String content;
         private String sourceId;
+
+        public SourceContent() {
+        }
+
+        public SourceContent(String sourceType, String content, String sourceId) {
+            this.sourceType = sourceType;
+            this.content = content;
+            this.sourceId = sourceId;
+        }
+
+        public String getSourceType() {
+            return sourceType;
+        }
+
+        public void setSourceType(String sourceType) {
+            this.sourceType = sourceType;
+        }
+
+        public String getContent() {
+            return content;
+        }
+
+        public void setContent(String content) {
+            this.content = content;
+        }
+
+        public String getSourceId() {
+            return sourceId;
+        }
+
+        public void setSourceId(String sourceId) {
+            this.sourceId = sourceId;
+        }
     }
 }

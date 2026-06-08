@@ -34,8 +34,7 @@ public class EmbeddingClient {
      */
     public float[] generateEmbedding(String text) {
         if (!aiProperties.hasApiKey()) {
-            log.warn("AI API key not configured, returning mock embedding");
-            return generateMockEmbedding(text);
+            throw new IllegalStateException("AI API key is not configured");
         }
 
         try {
@@ -57,7 +56,7 @@ public class EmbeddingClient {
 
         } catch (Exception e) {
             log.error("Failed to generate embedding via API: {}", e.getMessage());
-            return generateMockEmbedding(text);
+            throw new IllegalStateException("Failed to generate embedding via API: " + e.getMessage(), e);
         }
     }
 
@@ -73,34 +72,6 @@ public class EmbeddingClient {
 
         for (int i = 0; i < dimensions && i < embeddingNode.size(); i++) {
             embedding[i] = (float) embeddingNode.get(i).asDouble();
-        }
-
-        return embedding;
-    }
-
-    /**
-     * Generate mock embedding for development/testing
-     * Uses simple hash-based approach for deterministic results
-     */
-    private float[] generateMockEmbedding(String text) {
-        int dimensions = aiProperties.getEmbeddingDimensions();
-        float[] embedding = new float[dimensions];
-
-        // Simple hash-based mock embedding
-        int hash = text.hashCode();
-        for (int i = 0; i < dimensions; i++) {
-            embedding[i] = (float) Math.sin(hash + i) * 0.1f;
-        }
-
-        // Normalize to unit vector
-        float norm = 0;
-        for (float v : embedding) {
-            norm += v * v;
-        }
-        norm = (float) Math.sqrt(norm);
-
-        for (int i = 0; i < dimensions; i++) {
-            embedding[i] /= norm;
         }
 
         return embedding;

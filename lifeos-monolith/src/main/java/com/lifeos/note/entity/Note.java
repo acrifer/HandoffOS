@@ -34,6 +34,15 @@ public class Note {
     @Column(nullable = false)
     private Boolean pinned = false;
 
+    @Column(name = "review_state", length = 32)
+    private String reviewState = "NEW";
+
+    @Column(name = "next_review_at")
+    private LocalDateTime nextReviewAt;
+
+    @Column(name = "last_reviewed_at")
+    private LocalDateTime lastReviewedAt;
+
     @Column(name = "create_time")
     private LocalDateTime createTime;
 

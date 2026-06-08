@@ -46,11 +46,7 @@ public class KnowledgeGraphService {
 
         // Extract entities and relations from each source
         for (String text : sourceTexts) {
-            try {
-                extractAndSave(skillId, text);
-            } catch (Exception e) {
-                log.error("Failed to extract from text: {}", e.getMessage());
-            }
+            extractAndSave(skillId, text);
         }
 
         log.info("Knowledge graph built for skill {}: {} entities, {} relations",
@@ -64,8 +60,7 @@ public class KnowledgeGraphService {
      */
     private void extractAndSave(Long skillId, String text) {
         if (!aiProperties.hasApiKey()) {
-            extractMockEntitiesAndRelations(skillId, text);
-            return;
+            throw new IllegalStateException("AI API key is not configured");
         }
 
         try {
@@ -75,7 +70,7 @@ public class KnowledgeGraphService {
 
         } catch (Exception e) {
             log.error("Failed to extract via LLM: {}", e.getMessage());
-            extractMockEntitiesAndRelations(skillId, text);
+            throw new IllegalStateException("Failed to extract knowledge graph via LLM: " + e.getMessage(), e);
         }
     }
 
@@ -193,40 +188,6 @@ public class KnowledgeGraphService {
 
                     relationRepository.save(relation);
                 }
-            }
-        }
-    }
-
-    /**
-     * Extract mock entities and relations for development
-     */
-    private void extractMockEntitiesAndRelations(Long skillId, String text) {
-        // Simple keyword-based extraction for demo
-        List<String> personKeywords = Arrays.asList("负责人", "开发", "经理", "工程师");
-        List<String> projectKeywords = Arrays.asList("项目", "模块", "系统", "平台");
-        List<String> processKeywords = Arrays.asList("流程", "步骤", "阶段", "环节");
-
-        // Extract simple entities based on keywords
-        if (text.contains("张三") || text.contains("李四")) {
-            KnowledgeEntity person = new KnowledgeEntity();
-            person.setSkillId(skillId);
-            person.setEntityType("PERSON");
-            person.setEntityName(text.contains("张三") ? "张三" : "李四");
-            person.setDescription("团队成员");
-            person.setConfidence(0.5);
-            entityRepository.save(person);
-        }
-
-        for (String keyword : projectKeywords) {
-            if (text.contains(keyword)) {
-                KnowledgeEntity project = new KnowledgeEntity();
-                project.setSkillId(skillId);
-                project.setEntityType("PROJECT");
-                project.setEntityName(keyword);
-                project.setDescription("项目相关");
-                project.setConfidence(0.5);
-                entityRepository.save(project);
-                break;
             }
         }
     }

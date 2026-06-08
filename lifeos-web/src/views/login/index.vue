@@ -1,24 +1,24 @@
 <template>
   <div class="login-page">
     <section class="intro-panel">
-      <p class="eyebrow">LifeOS</p>
-      <h1>把零散信息整理成你自己的知识系统。</h1>
+      <p class="eyebrow">HandoffOS</p>
+      <h1>进入团队交接 AI 控制台。</h1>
       <p class="intro-copy">
-        用更轻量的方式记录想法、沉淀笔记、提取行动项，并在需要时快速找回。
+        聚合飞书文档、群聊资料和 Dify Knowledge，把项目经验蒸馏成可问答、可审计的交接 Skill。
       </p>
 
       <div class="feature-list">
         <article>
-          <strong>快速记录</strong>
-          <span>随手写下会议纪要、学习摘要和灵感草稿。</span>
+          <strong>资料接入</strong>
+          <span>同步飞书文档和群聊，也支持手动补充交接材料。</span>
         </article>
         <article>
-          <strong>AI 整理</strong>
-          <span>自动生成摘要、整理标题与标签、提取行动项。</span>
+          <strong>Skill 蒸馏</strong>
+          <span>把角色边界、工作原则、检查清单和风险点结构化。</span>
         </article>
         <article>
-          <strong>复习复用</strong>
-          <span>通过复习队列和知识任务，让笔记真正产生价值。</span>
+          <strong>RAG 问答</strong>
+          <span>基于知识库回答新人问题，并保留引用、反馈和作业日志。</span>
         </article>
       </div>
     </section>
@@ -27,7 +27,7 @@
       <div class="auth-card">
         <div class="auth-header">
           <h2>{{ isLogin ? '登录账号' : '创建账号' }}</h2>
-          <p>{{ isLogin ? '继续进入你的知识空间。' : '先创建一个账号，再开始记录。' }}</p>
+          <p>{{ isLogin ? '继续进入 Skill 工作台。' : '创建演示账号后开始搭建交接助手。' }}</p>
         </div>
 
         <form class="form-area" @submit.prevent="handleSubmit">
@@ -116,12 +116,16 @@ const handleSubmit = async () => {
 
   try {
     if (isLogin.value) {
-      const token = await userApi.login({
+      const loginResult = await userApi.login({
         username: form.username,
         password: form.password
       })
+      const token = typeof loginResult === 'string' ? loginResult : loginResult?.token
+      if (!token) {
+        throw new Error('登录响应缺少 token')
+      }
       localStorage.setItem('lifeos_token', token)
-      router.push('/dashboard')
+      router.push('/skill')
       return
     }
 
@@ -146,10 +150,7 @@ const handleSubmit = async () => {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
-  background:
-    radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(15, 76, 129, 0.2), transparent 28%),
-    linear-gradient(135deg, #f3f8fb 0%, #e7eff5 100%);
+  background: var(--bg);
 }
 
 .intro-panel,
@@ -198,10 +199,10 @@ const handleSubmit = async () => {
 
 .feature-list article {
   padding: 18px 20px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(215, 226, 235, 0.92);
-  box-shadow: 0 18px 35px rgba(13, 30, 47, 0.05);
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .feature-list strong {
@@ -222,10 +223,10 @@ const handleSubmit = async () => {
 .auth-card {
   width: min(100%, 460px);
   padding: 34px;
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(215, 226, 235, 0.92);
-  box-shadow: 0 22px 44px rgba(13, 30, 47, 0.08);
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
 
 .auth-header {

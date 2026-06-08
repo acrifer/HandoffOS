@@ -28,7 +28,7 @@ public class KnowledgeEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(precision = 3, scale = 2)
+    @Column
     private Double confidence = 0.5;
 
     @Column(name = "create_time")

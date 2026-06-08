@@ -57,7 +57,21 @@ ai:
 feishu:
   app-id: ${FEISHU_APP_ID:}
   app-secret: ${FEISHU_APP_SECRET:}
-  base-url: https://open.feishu.cn/open-apis
+  base-url: ${FEISHU_BASE_URL:https://open.feishu.cn/open-apis}
+  chat-history-limit: ${FEISHU_CHAT_HISTORY_LIMIT:80}
+  demo-fallback-enabled: ${FEISHU_DEMO_FALLBACK_ENABLED:false}
+  bot-enabled: ${FEISHU_BOT_ENABLED:false}
+  bot-long-connection-enabled: ${FEISHU_BOT_LONG_CONNECTION_ENABLED:false}
+  bot-verification-token: ${FEISHU_BOT_VERIFICATION_TOKEN:}
+  bot-encrypt-key: ${FEISHU_BOT_ENCRYPT_KEY:}
+
+# Dify Configuration (for managed Knowledge + Workflow runtime)
+dify:
+  base-url: ${DIFY_BASE_URL:http://localhost:5001/v1}
+  api-key: ${DIFY_API_KEY:}
+  distill-workflow-key: ${DIFY_DISTILL_WORKFLOW_KEY:}
+  ask-app-key: ${DIFY_ASK_APP_KEY:}
+  demo-mode: ${DIFY_DEMO_MODE:false}
 
 # Logging
 logging:

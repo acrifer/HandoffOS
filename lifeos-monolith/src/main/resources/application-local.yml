@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: lifeos-monolith
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lifeos
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jpa:
+          compliance:
+            query: false
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+server:
+  port: 8080
+
+# JWT 配置
+jwt:
+  secret: your-secret-key-must-be-at-least-32-characters-long
+  expiration: 86400000
+
+# AI 配置（需要真实 API Key）
+ai:
+  base-url: https://api.deepseek.com
+  api-key:
+  model: deepseek-chat
+  embedding-model: text-embedding-3-small
+
+dify:
+  base-url: http://localhost:5001/v1
+  api-key:
+  distill-workflow-key:
+  ask-app-key:
+  demo-mode: false
+
+feishu:
+  app-id:
+  app-secret:
+  base-url: https://open.feishu.cn/open-apis
+  chat-history-limit: 80
+  demo-fallback-enabled: false
+
+# Swagger 配置
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html

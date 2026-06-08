@@ -2,11 +2,11 @@
   <div class="page">
     <section class="hero card">
       <div>
-        <p class="eyebrow">知识笔记库</p>
-        <h1>记录、整理、提取行动项，都在同一页完成。</h1>
-        <p>AI 操作现在改成异步任务流，提交后会自动轮询状态，不再阻塞当前编辑。</p>
+        <p class="eyebrow">资料暂存区</p>
+        <h1>补充交接资料、整理上下文、沉淀补充说明。</h1>
+        <p>这里保留原笔记能力，但在新控制台里承担“交接材料草稿区”的角色，用来补飞书之外的说明、FAQ 和上下文。</p>
       </div>
-      <button class="primary-btn" @click="openCreateModal">新建笔记</button>
+      <button class="primary-btn" @click="openCreateModal">新建资料</button>
     </section>
 
     <section class="toolbar card">
@@ -31,8 +31,8 @@
         </select>
         <select v-model="sortOption">
           <option value="updated">最近更新</option>
-          <option value="created">最近创建</option>
-          <option value="review">复习优先</option>
+          <option value="created">最近录入</option>
+          <option value="review">确认优先</option>
         </select>
         <button class="ghost-btn" @click="resetFilters">重置</button>
         <button class="secondary-btn" @click="fetchNotes">筛选</button>
@@ -42,8 +42,8 @@
     <section v-if="selectedView === 'review' && reviewQueue.length" class="card review-cockpit">
       <div class="row">
         <div>
-          <p class="section-label">复习队列</p>
-          <h2>先处理该回看的内容</h2>
+          <p class="section-label">确认队列</p>
+          <h2>先处理需要确认的交接资料</h2>
         </div>
         <button class="ghost-btn" @click="openEditModal(currentReviewTarget?.id)" :disabled="!currentReviewTarget">
           打开当前目标
@@ -53,15 +53,15 @@
       <div class="review-stats">
         <article>
           <strong>{{ reviewInsights.total }}</strong>
-          <span>待复习总数</span>
+          <span>待确认总数</span>
         </article>
         <article>
           <strong>{{ reviewInsights.overdue }}</strong>
-          <span>已到期</span>
+          <span>已逾期</span>
         </article>
         <article>
           <strong>{{ reviewInsights.today }}</strong>
-          <span>今天安排</span>
+            <span>待确认</span>
         </article>
         <article>
           <strong>{{ reviewInsights.unscheduled }}</strong>
@@ -72,18 +72,18 @@
       <div class="review-grid">
         <article v-if="currentReviewTarget" class="review-focus">
           <p class="section-label">当前目标</p>
-          <h3>{{ currentReviewTarget.title || '未命名笔记' }}</h3>
+          <h3>{{ currentReviewTarget.title || '未命名资料' }}</h3>
           <p class="focus-copy">{{ currentReviewTarget.summary || previewText(currentReviewTarget.content) }}</p>
           <div class="meta">
             <span>{{ reviewDueLabel(currentReviewTarget) }}</span>
-            <span>{{ currentReviewTarget.lastReviewedAt ? `上次复习 ${formatDate(currentReviewTarget.lastReviewedAt)}` : '还没有复习记录' }}</span>
+            <span>{{ currentReviewTarget.lastReviewedAt ? `上次确认 ${formatDate(currentReviewTarget.lastReviewedAt)}` : '还没有确认记录' }}</span>
           </div>
           <div class="tags">
             <span v-for="tag in splitTags(currentReviewTarget.tags)" :key="tag" class="tag">#{{ tag }}</span>
           </div>
           <div class="actions">
-            <button class="primary-btn" @click="completeReview(currentReviewTarget, 3)">今天看完，3 天后再看</button>
-            <button class="secondary-btn" @click="completeReview(currentReviewTarget, 7)">记为重点，7 天后复习</button>
+            <button class="primary-btn" @click="completeReview(currentReviewTarget, 3)">今天已确认，3 天后复查</button>
+            <button class="secondary-btn" @click="completeReview(currentReviewTarget, 7)">标为重点，7 天后复查</button>
             <button class="ghost-btn" @click="markEvergreen(currentReviewTarget)">标记常青</button>
           </div>
         </article>
@@ -92,7 +92,7 @@
           <div v-for="note in reviewQueue.slice(0, 5)" :key="note.id" class="review-item">
             <button class="review-link" @click="openEditModal(note.id)">
               <div>
-                <strong>{{ note.title || '未命名笔记' }}</strong>
+                <strong>{{ note.title || '未命名资料' }}</strong>
                 <p>{{ note.tags || '还没有标签' }}</p>
               </div>
               <span>{{ reviewDueLabel(note) }}</span>
@@ -106,8 +106,8 @@
       </div>
     </section>
 
-    <section v-if="loading" class="card empty">正在加载笔记...</section>
-    <section v-else-if="notes.length === 0" class="card empty">没有符合条件的笔记。</section>
+    <section v-if="loading" class="card empty">正在加载交接资料...</section>
+    <section v-else-if="notes.length === 0" class="card empty">没有符合条件的交接资料。</section>
     <section v-else class="grid">
       <article v-for="note in notes" :key="note.id" class="card note-card" @click="openEditModal(note.id)">
         <div class="row">
@@ -119,9 +119,9 @@
             {{ note.pinned ? '取消置顶' : '置顶' }}
           </button>
         </div>
-        <h3>{{ note.title || '未命名笔记' }}</h3>
+        <h3>{{ note.title || '未命名资料' }}</h3>
         <p class="preview">{{ previewText(note.content) }}</p>
-        <div class="summary">{{ note.summary || '还没有 AI 摘要。' }}</div>
+        <div class="summary">{{ note.summary || '还没有交接摘要。' }}</div>
         <div class="meta">
           <span>{{ formatDate(note.updateTime) }}</span>
           <span>{{ reviewDueLabel(note) }}</span>
@@ -137,8 +137,8 @@
       <div ref="modalRef" class="modal card">
         <div class="row modal-header">
           <div class="grow">
-            <input v-model="currentNote.title" class="title-input" type="text" placeholder="笔记标题" />
-            <p class="muted">{{ currentNote.id ? `更新于 ${formatDate(currentNote.updateTime)}` : '新建笔记' }}</p>
+            <input v-model="currentNote.title" class="title-input" type="text" placeholder="资料标题" />
+            <p class="muted">{{ currentNote.id ? `更新于 ${formatDate(currentNote.updateTime)}` : '新建交接资料' }}</p>
           </div>
           <div class="actions">
             <button class="ghost-btn" @click="toggleCurrentPin">{{ currentNote.pinned ? '取消置顶' : '置顶' }}</button>
@@ -152,7 +152,7 @@
               <input v-model="currentNote.tags" type="text" placeholder="标签，用逗号分隔" />
               <select v-model="currentNote.reviewState">
                 <option value="NEW">新建</option>
-                <option value="REVIEW">待复习</option>
+                <option value="REVIEW">待确认</option>
                 <option value="EVERGREEN">常青</option>
                 <option value="ARCHIVED">已归档</option>
               </select>
@@ -163,7 +163,7 @@
               <span :class="{ error: saveStatus.type === 'error' }">{{ saveStatus.text }}</span>
               <div class="actions">
                 <button class="ghost-btn" @click="closeModal">关闭</button>
-                <button class="primary-btn" :disabled="saving" @click="saveNote">{{ saving ? '保存中...' : '保存笔记' }}</button>
+                <button class="primary-btn" :disabled="saving" @click="saveNote">{{ saving ? '保存中...' : '保存资料' }}</button>
               </div>
             </div>
           </section>
@@ -184,7 +184,7 @@
               <div class="row">
                 <h4>整理建议</h4>
                 <button class="secondary-btn" :disabled="!currentNote.id || aiBusy.organize" @click="runOrganizeJob">
-                  {{ aiBusy.organize ? '已提交' : '整理笔记' }}
+                  {{ aiBusy.organize ? '已提交' : '整理资料' }}
                 </button>
               </div>
               <template v-if="organizeSuggestion">
@@ -193,7 +193,7 @@
                 <p><strong>摘要：</strong>{{ organizeSuggestion.summary }}</p>
                 <button class="primary-btn full" @click="applyOrganizeSuggestion">应用整理建议</button>
               </template>
-              <p v-else>生成标题、标签和摘要建议，但不会自动覆盖原内容。</p>
+              <p v-else>生成标题、标签和摘要建议，作为补充交接资料的整理辅助。</p>
               <small v-if="activeJobs.organize">状态：{{ jobStatusLabel(activeJobs.organize.status) }}</small>
             </article>
 
@@ -209,12 +209,12 @@
                   <input v-model="item.selected" type="checkbox" />
                   <div>
                     <strong>{{ item.title }}</strong>
-                    <p>{{ item.description || '从笔记中提炼出的下一步。' }}</p>
+                    <p>{{ item.description || '从资料中提炼出的下一步。' }}</p>
                   </div>
                 </label>
                 <button class="primary-btn full" @click="createTasksFromSuggestions">创建选中任务</button>
               </template>
-              <p v-else>从当前笔记里提取 1 到 5 条可执行任务。</p>
+              <p v-else>从当前资料里提取 1 到 5 条交接行动项。</p>
               <small v-if="activeJobs.extract">状态：{{ jobStatusLabel(activeJobs.extract.status) }}</small>
             </article>
 
@@ -232,17 +232,17 @@
                   <span>{{ jobStatusLabel(job.status) }}</span>
                 </div>
               </div>
-              <p v-else>当前笔记还没有 AI 作业记录。</p>
+              <p v-else>当前资料还没有 AI 作业记录。</p>
             </article>
 
             <article class="card inner">
-              <h4>复习操作</h4>
+              <h4>确认操作</h4>
               <div class="review-actions">
-                <button class="ghost-btn" :disabled="!currentNote.id" @click="completeCurrentReview(2)">2 天后再看</button>
-                <button class="ghost-btn" :disabled="!currentNote.id" @click="completeCurrentReview(7)">7 天后再看</button>
+                <button class="ghost-btn" :disabled="!currentNote.id" @click="completeCurrentReview(2)">2 天后复查</button>
+                <button class="ghost-btn" :disabled="!currentNote.id" @click="completeCurrentReview(7)">7 天后复查</button>
                 <button class="ghost-btn" :disabled="!currentNote.id" @click="markCurrentEvergreen">标记常青</button>
               </div>
-              <p class="muted">{{ currentNote.lastReviewedAt ? `最近复习：${formatDate(currentNote.lastReviewedAt)}` : '还没有复习记录。' }}</p>
+              <p class="muted">{{ currentNote.lastReviewedAt ? `最近确认：${formatDate(currentNote.lastReviewedAt)}` : '还没有确认记录。' }}</p>
             </article>
 
             <article class="card inner">
@@ -256,7 +256,7 @@
                   <button v-if="task.status !== 2" class="ghost-btn small" @click="completeLinkedTask(task.id)">完成</button>
                 </div>
               </div>
-              <p v-else>还没有由这篇笔记生成的任务。</p>
+              <p v-else>还没有由这篇资料生成的行动项。</p>
             </article>
           </section>
         </div>
@@ -275,9 +275,9 @@ const router = useRouter()
 const route = useRoute()
 
 const viewOptions = [
-  { id: 'all', label: '全部笔记', params: {} },
+  { id: 'all', label: '全部资料', params: {} },
   { id: 'pinned', label: '已置顶', params: { pinned: true } },
-  { id: 'review', label: '待复习', params: { reviewState: 'REVIEWABLE', sort: 'review' } },
+  { id: 'review', label: '待确认', params: { reviewState: 'REVIEWABLE', sort: 'review' } },
   { id: 'recent', label: '最近更新', params: { sort: 'updated' } },
   { id: 'summary', label: '有 AI 摘要', params: { hasSummary: true } },
   { id: 'organize', label: '待整理', params: { needsOrganization: true } }
@@ -461,7 +461,7 @@ const syncRoute = async (noteId) => {
 
 const saveNote = async () => {
   saving.value = true
-  saveStatus.value = { type: 'info', text: '正在保存笔记...' }
+  saveStatus.value = { type: 'info', text: '正在保存资料...' }
   try {
     if (!currentNote.value.id) {
       const noteId = await noteApi.create({
@@ -504,7 +504,7 @@ const saveNote = async () => {
 }
 
 const deleteNote = async (noteId) => {
-  if (!window.confirm('确定删除这篇笔记吗？')) return
+  if (!window.confirm('确定删除这篇交接资料吗？')) return
   await noteApi.delete(noteId)
   if (String(currentNote.value.id || '') === String(noteId)) await closeModal()
   await fetchNotes()
@@ -576,7 +576,7 @@ const markEvergreen = async (note) => {
 const completeCurrentReview = async (days) => {
   if (!currentNote.value.id) return
   await completeReview(currentNote.value, days)
-  saveStatus.value = { type: 'success', text: `已记录复习，下次安排在 ${days} 天后。` }
+  saveStatus.value = { type: 'success', text: `已记录确认，下次安排在 ${days} 天后。` }
 }
 
 const markCurrentEvergreen = async () => {
@@ -680,18 +680,18 @@ const resetFilters = async () => {
 const splitTags = (value) => (value || '').split(',').map(item => item.trim()).filter(Boolean)
 const previewText = (value) => {
   const text = (value || '').replace(/\s+/g, ' ').trim()
-  if (!text) return '这篇笔记还没有正文内容。'
+  if (!text) return '这篇资料还没有正文内容。'
   return text.length > 96 ? `${text.slice(0, 96)}...` : text
 }
 
-const reviewLabel = (value) => ({ REVIEW: '待复习', EVERGREEN: '常青', ARCHIVED: '已归档' }[value] || '新建')
+const reviewLabel = (value) => ({ REVIEW: '待确认', EVERGREEN: '常青', ARCHIVED: '已归档' }[value] || '新建')
 const jobTypeLabel = (value) => ({ SUMMARY: '摘要', ORGANIZE: '整理', EXTRACT_TASKS: '提取任务', WEEKLY_REVIEW: '周复盘' }[value] || value)
 const jobStatusLabel = (value) => ({ PENDING: '排队中', PROCESSING: '处理中', SUCCESS: '已完成', FAILED: '失败' }[value] || '未知状态')
 const formatDate = (value) => value ? new Date(value).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '未设置时间'
 
 const reviewDueLabel = (note) => {
   if (!['REVIEW', 'EVERGREEN'].includes(note.reviewState)) {
-    return note.nextReviewAt ? `下次复习 ${formatDate(note.nextReviewAt)}` : '未安排复习'
+    return note.nextReviewAt ? `下次确认 ${formatDate(note.nextReviewAt)}` : '未安排确认'
   }
   if (!note.nextReviewAt) return '未排时间'
   const due = new Date(note.nextReviewAt).getTime()
@@ -700,7 +700,7 @@ const reviewDueLabel = (note) => {
   endOfToday.setHours(23, 59, 59, 999)
   if (due < now) return '已到期'
   if (due <= endOfToday.getTime()) return '今天'
-  return `下次复习 ${formatDate(note.nextReviewAt)}`
+  return `下次确认 ${formatDate(note.nextReviewAt)}`
 }
 
 const toDateTimeLocal = (value) => value ? new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''
@@ -748,43 +748,231 @@ watch(showModal, (visible) => {
 </script>
 
 <style scoped>
-.page { max-width: 1280px; margin: 0 auto; padding: 32px; }
-.card { background: #fff; border: 1px solid #d8e3ec; border-radius: 24px; box-shadow: 0 18px 32px rgba(15, 23, 42, 0.06); }
-.hero { display: flex; justify-content: space-between; gap: 24px; padding: 32px; margin-bottom: 18px; background: linear-gradient(135deg, #103d5d, #0f766e); color: #fff; }
-.eyebrow, .section-label { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.72); }
-.section-label { color: #5e7388; }
-.hero h1 { margin: 0 0 12px; font-size: 38px; line-height: 1.08; }
-.hero p { margin: 0; line-height: 1.8; }
-.toolbar, .review-cockpit { padding: 18px; margin-bottom: 18px; display: grid; gap: 14px; }
-.views, .filters, .row, .actions, .badges, .tags, .quick-actions, .review-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.filters input, .filters select, .form-grid input, .form-grid select, .title-input, .editor { border: 1px solid #d7e2eb; border-radius: 14px; background: #f8fbfd; padding: 12px 14px; font: inherit; color: #102033; }
-.filters input, .filters select { flex: 1; min-width: 180px; }
-.chip, .primary-btn, .secondary-btn, .ghost-btn, .danger-btn { border: none; border-radius: 14px; padding: 11px 14px; font: inherit; cursor: pointer; }
-.chip, .ghost-btn { background: #f5f9fc; color: #375068; }
-.chip.active, .primary-btn { background: #103d5d; color: #fff; }
-.secondary-btn { background: #dbf0f0; color: #0f5f67; }
-.danger-btn { background: #fff1f2; color: #be123c; }
-.small { padding: 8px 10px; font-size: 13px; }
-.empty { padding: 26px; color: #607487; }
-.review-stats, .review-grid { display: grid; gap: 16px; }
-.review-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.review-stats article, .review-focus, .review-item { padding: 16px; border-radius: 18px; border: 1px solid #e1eaf1; background: #f8fbfd; }
-.review-stats strong { font-size: 28px; color: #102033; }
-.review-grid { grid-template-columns: 1.15fr 0.85fr; }
-.review-focus { display: grid; gap: 12px; }
-.focus-copy, .preview, .meta, .summary, .muted, .task-item p, .job-row p, .review-link p { color: #607487; line-height: 1.7; }
-.review-list { display: grid; gap: 12px; }
-.review-link { width: 100%; border: none; background: transparent; display: flex; justify-content: space-between; gap: 12px; text-align: left; cursor: pointer; padding: 0; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 18px; }
-.note-card { padding: 20px; display: grid; gap: 12px; cursor: pointer; }
-.badge, .tag { background: #eaf0f6; color: #31516c; border-radius: 999px; padding: 6px 10px; font-size: 12px; }
-.badge.success { background: #dcfce7; color: #166534; }
-.summary { min-height: 84px; padding: 14px; border-radius: 18px; background: #f8fbfd; border: 1px solid #e1eaf1; }
-.meta { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+
+.eyebrow,
+.section-label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--blue);
+  font-weight: 800;
+}
+
+.hero h1 {
+  margin: 0 0 10px;
+  font-size: 28px;
+  line-height: 1.18;
+}
+
+.hero p,
+.focus-copy,
+.preview,
+.meta,
+.summary,
+.muted,
+.task-item p,
+.job-row p,
+.review-link p {
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.toolbar,
+.review-cockpit {
+  padding: 18px;
+  margin-bottom: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.views,
+.filters,
+.row,
+.actions,
+.badges,
+.tags,
+.quick-actions,
+.review-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filters input,
+.filters select,
+.form-grid input,
+.form-grid select,
+.title-input,
+.editor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 10px 11px;
+  color: var(--text);
+}
+
+.filters input,
+.filters select {
+  flex: 1;
+  min-width: 180px;
+}
+
+.chip,
+.primary-btn,
+.secondary-btn,
+.ghost-btn,
+.danger-btn {
+  min-height: 38px;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  background: var(--panel-soft);
+  color: #334155;
+}
+
+.chip.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+
+.small {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.empty {
+  padding: 26px;
+  color: var(--text-muted);
+}
+
+.review-stats,
+.review-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.review-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.review-stats article,
+.review-focus,
+.review-item {
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+}
+
+.review-stats strong {
+  font-size: 28px;
+  color: var(--navy);
+}
+
+.review-grid {
+  grid-template-columns: 1.15fr 0.85fr;
+}
+
+.review-focus {
+  display: grid;
+  gap: 12px;
+}
+
+.review-list {
+  display: grid;
+  gap: 12px;
+}
+
+.review-link {
+  width: 100%;
+  border: none;
+  background: transparent;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+}
+
+.note-card {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.note-card:hover {
+  border-color: var(--border-strong);
+}
+
+.badge,
+.tag {
+  background: var(--bg-muted);
+  color: #475569;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge.success {
+  background: #dcfce7;
+  color: var(--green);
+}
+
+.summary {
+  min-height: 84px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.38);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -801,24 +989,29 @@ watch(showModal, (visible) => {
   width: min(1320px, 100%);
   max-height: calc(100vh - var(--app-header-height, 96px) - 32px);
   overflow: auto;
-  padding: 24px;
+  padding: 20px;
   margin: 0 auto;
 }
 .modal-header { margin-bottom: 18px; }
 .grow { flex: 1; }
-.title-input { width: 100%; font-size: 28px; font-weight: 700; margin-bottom: 10px; }
+.title-input {
+  width: 100%;
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
 .modal-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; }
 .inner { padding: 18px; }
 .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
 .editor { width: 100%; min-height: 360px; max-height: min(60vh, 720px); resize: vertical; }
 .side { display: grid; gap: 16px; }
 .full { width: 100%; margin-top: 12px; }
-.task-item, .job-row { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 16px; background: #f8fbfd; border: 1px solid #e1eaf1; }
+.task-item, .job-row { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: var(--radius); background: var(--panel-soft); border: 1px solid var(--border); }
 .task-item + .task-item, .job-row + .job-row { margin-top: 10px; }
-.error { color: #b91c1c; }
+.error { color: var(--red); }
 @media (max-width: 1100px) { .modal-grid, .form-grid, .review-stats, .review-grid { grid-template-columns: 1fr; } }
 @media (max-width: 768px) {
-  .page { padding: 20px; }
+  .page { padding: 16px; }
   .hero, .modal-header { flex-direction: column; align-items: stretch; }
   .overlay {
     padding:
@@ -829,6 +1022,11 @@ watch(showModal, (visible) => {
   .modal {
     max-height: calc(100vh - var(--app-header-height, 132px) - 24px);
     padding: 18px;
+  }
+
+  .filters {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 </style>

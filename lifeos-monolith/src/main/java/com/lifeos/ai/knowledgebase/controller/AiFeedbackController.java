@@ -29,7 +29,7 @@ public class AiFeedbackController {
         try {
             return Result.success(aiKnowledgeService.feedback(resolveUserId(servletRequest, userId), qaLogId, body));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 

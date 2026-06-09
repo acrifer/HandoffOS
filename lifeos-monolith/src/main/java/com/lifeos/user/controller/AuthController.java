@@ -24,20 +24,12 @@ public class AuthController {
     @PostMapping("/register")
     @Operation(summary = "Register new user")
     public Result<LoginResponse> register(@RequestBody RegisterRequest request) {
-        try {
-            return Result.success(userService.register(request));
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
+        return Result.error(410, "账号注册已关闭，请使用设备演示登录");
     }
 
     @PostMapping("/login")
     @Operation(summary = "User login")
     public Result<LoginResponse> login(@RequestBody LoginRequest request) {
-        try {
-            return Result.success(userService.login(request));
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
+        return Result.error(410, "账号登录已关闭，请使用设备演示登录");
     }
 }

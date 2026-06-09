@@ -8,6 +8,8 @@ import com.lifeos.ai.job.service.AiWorkflowJobService;
 import com.lifeos.ai.knowledge.KnowledgeGraphService;
 import com.lifeos.ai.knowledgebase.entity.AiQaLog;
 import com.lifeos.ai.knowledgebase.service.AiKnowledgeService;
+import com.lifeos.demo.exception.ApiException;
+import com.lifeos.demo.service.DemoDeviceService;
 import com.lifeos.integration.dify.*;
 import com.lifeos.integration.feishu.FeishuSourceItem;
 import com.lifeos.integration.feishu.FeishuSourceService;
@@ -41,6 +43,7 @@ public class SkillService {
     private final DifyClient difyClient;
     private final KnowledgeGraphService knowledgeGraphService;
     private final AiKnowledgeService aiKnowledgeService;
+    private final DemoDeviceService demoDeviceService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
@@ -95,6 +98,10 @@ public class SkillService {
                     request.getEndTime(),
                     request.getLimit()
             );
+            long estimatedTokens = incoming.stream()
+                    .mapToLong(item -> demoDeviceService.estimateTokens(item.getTitle(), item.getContent()))
+                    .sum();
+            demoDeviceService.requireAvailable(userId, "SKILL_SYNC", Math.max(1L, estimatedTokens));
 
             int indexedCount = 0;
             for (FeishuSourceItem item : incoming) {
@@ -124,11 +131,14 @@ public class SkillService {
                     "indexedCount", indexedCount
             );
             jobService.markSuccess(job, result, null);
+            demoDeviceService.recordUsage(userId, skillId, "DIFY_KNOWLEDGE", "SKILL_SYNC",
+                    estimatedTokens, 0L, true, null, "SUCCESS");
             return toDetailResponse(skill);
         } catch (Exception e) {
             skill.setStatus("FAILED");
             skillRepository.save(skill);
             jobService.markFailed(job, e);
+            recordFailureUsage(userId, skillId, "DIFY_KNOWLEDGE", "SKILL_SYNC", e);
             throw e;
         }
     }
@@ -149,6 +159,8 @@ public class SkillService {
 
             List<HandoffSkillSource> sources = sourceRepository.findBySkillId(skillId);
             List<Map<String, Object>> sourceSummaries = sources.stream().map(this::sourceAsMap).toList();
+            long estimatedTokens = demoDeviceService.estimateTokens(skill.getName(), skill.getRoleDescription(), toJson(sourceSummaries));
+            demoDeviceService.requireAvailable(userId, "SKILL_DISTILL", estimatedTokens);
             DifyRunResponse run = difyClient.runDistillWorkflow(
                     skill.getName(),
                     skill.getRoleDescription(),
@@ -173,11 +185,13 @@ public class SkillService {
             result.put("handoffSkill", outputs);
             result.put("citations", run.getCitations());
             AiWorkflowJob saved = jobService.markSuccess(job, result, run.getWorkflowRunId());
+            recordRunUsage(userId, skillId, "DIFY_WORKFLOW", "SKILL_DISTILL", estimatedTokens, run, skill.getDistillResult(), "SUCCESS");
             return jobService.toResponse(saved);
         } catch (Exception e) {
             skill.setStatus("FAILED");
             skillRepository.save(skill);
             jobService.markFailed(job, e);
+            recordFailureUsage(userId, skillId, "DIFY_WORKFLOW", "SKILL_DISTILL", e);
             throw e;
         }
     }
@@ -195,6 +209,8 @@ public class SkillService {
         skillRepository.save(skill);
 
         try {
+            long estimatedTokens = demoDeviceService.estimateTokens(question);
+            demoDeviceService.requireAvailable(userId, "SKILL_ASK", estimatedTokens);
             DifyRunResponse run = difyClient.askSkill(
                     skill.getName(),
                     skill.getDifyDatasetId(),
@@ -235,9 +251,11 @@ public class SkillService {
             result.put("citations", citations);
             result.put("qaLogId", qaLog.getId());
             AiWorkflowJob saved = jobService.markSuccess(job, result, run.getWorkflowRunId());
+            recordRunUsage(userId, skillId, "DIFY_CHATFLOW", "SKILL_ASK", estimatedTokens, run, answer, "SUCCESS");
             return jobService.toResponse(saved);
         } catch (Exception e) {
             jobService.markFailed(job, e);
+            recordFailureUsage(userId, skillId, "DIFY_CHATFLOW", "SKILL_ASK", e);
             throw e;
         }
     }
@@ -427,5 +445,31 @@ public class SkillService {
         } catch (Exception e) {
             return Integer.toHexString(String.valueOf(value).hashCode());
         }
+    }
+
+    private void recordRunUsage(Long userId,
+                                Long skillId,
+                                String sourceType,
+                                String operationType,
+                                long estimatedRequestTokens,
+                                DifyRunResponse run,
+                                String fallbackResponseText,
+                                String status) {
+        long requestTokens = run.getRequestTokens() == null || run.getRequestTokens() == 0L
+                ? estimatedRequestTokens
+                : run.getRequestTokens();
+        long responseTokens = run.getResponseTokens() == null || run.getResponseTokens() == 0L
+                ? demoDeviceService.estimateTokens(fallbackResponseText)
+                : run.getResponseTokens();
+        demoDeviceService.recordUsage(userId, skillId, sourceType, operationType,
+                requestTokens, responseTokens, run.isUsageEstimated(), run.getWorkflowRunId(), status);
+    }
+
+    private void recordFailureUsage(Long userId, Long skillId, String sourceType, String operationType, Exception e) {
+        if (e instanceof ApiException) {
+            return;
+        }
+        demoDeviceService.recordUsage(userId, skillId, sourceType, operationType,
+                1L, 0L, true, null, "FAILED");
     }
 }

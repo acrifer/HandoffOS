@@ -3,8 +3,8 @@
     <section class="page-header">
       <div>
         <p class="eyebrow">质量统计</p>
-        <h1>用问答日志和反馈发现知识库缺口。</h1>
-        <p>面向演示和面试说明：AI 回答不是黑盒调用，而是可观测、可反馈、可迭代。</p>
+        <h1>AI 质量、知识缺口与设备额度。</h1>
+        <p>面试演示环境按设备隔离数据，并用白名单和 token 额度控制外部 AI 成本。</p>
       </div>
       <div class="row">
         <button class="ghost-btn" :disabled="loading" @click="refresh">{{ loading ? '刷新中...' : '刷新统计' }}</button>
@@ -18,11 +18,58 @@
       <article class="metric-card"><span>失败调用</span><strong>{{ stats.failedCount || 0 }}</strong></article>
       <article class="metric-card"><span>无答案率</span><strong>{{ percent(stats.noAnswerRate) }}</strong></article>
       <article class="metric-card"><span>机器人触发</span><strong>{{ stats.botEventCount || 0 }}</strong></article>
-      <article class="metric-card"><span>机器人失败</span><strong>{{ stats.botFailedEventCount || 0 }}</strong></article>
       <article class="metric-card"><span>群聊绑定</span><strong>{{ stats.botBindingCount || 0 }}</strong></article>
     </section>
 
     <section class="quality-layout">
+      <article class="panel quota-panel wide">
+        <div class="panel-top">
+          <div>
+            <p class="section-label">设备白名单</p>
+            <h2>按登录设备调节 AI token 额度</h2>
+          </div>
+          <div class="admin-key-box">
+            <input v-model.trim="adminKey" type="password" placeholder="ADMIN_CONSOLE_KEY" @keyup.enter="saveAdminKey" />
+            <button class="ghost-btn" @click="saveAdminKey">保存 Key</button>
+            <button class="primary-btn" :disabled="quotaLoading" @click="loadDevices">{{ quotaLoading ? '加载中...' : '加载设备' }}</button>
+          </div>
+        </div>
+
+        <p v-if="quotaMessage" class="inline-message" :class="{ error: quotaError }">{{ quotaMessage }}</p>
+
+        <div class="quota-table">
+          <article v-for="device in filteredDevices" :key="device.deviceId" class="device-row">
+            <div class="device-main">
+              <strong>{{ device.displayName || device.deviceName || '演示设备' }}</strong>
+              <code>{{ device.deviceId }}</code>
+              <small>用户 #{{ device.userId || '-' }} · 最近访问 {{ formatDate(device.lastSeenAt) }}</small>
+            </div>
+            <div class="quota-progress">
+              <span>{{ device.whitelistEnabled ? '白名单不限额' : `${formatNumber(device.remaining)} / ${formatNumber(device.quotaLimit)} token` }}</span>
+              <i :style="{ width: `${quotaPercent(device)}%` }"></i>
+            </div>
+            <label class="compact-field">
+              <span>额度</span>
+              <input v-model.number="device.quotaLimit" type="number" min="0" />
+            </label>
+            <label class="toggle-field">
+              <input v-model="device.whitelistEnabled" type="checkbox" />
+              <span>白名单</span>
+            </label>
+            <label class="toggle-field">
+              <input v-model="device.enabled" type="checkbox" />
+              <span>启用</span>
+            </label>
+            <div class="device-actions">
+              <button class="ghost-btn" @click="saveDevice(device)">保存</button>
+              <button class="ghost-btn danger" @click="resetDevice(device)">重置</button>
+              <button class="ghost-btn" @click="selectDevice(device)">日志</button>
+            </div>
+          </article>
+          <p v-if="!filteredDevices.length" class="empty-state">输入 Admin Key 后加载设备额度列表。</p>
+        </div>
+      </article>
+
       <article class="panel">
         <p class="section-label">高频问题</p>
         <h2>新人反复卡在哪里</h2>
@@ -43,27 +90,18 @@
         </div>
       </article>
 
-      <article class="panel">
-        <p class="section-label">机器人命令</p>
-        <h2>飞书群触发分布</h2>
-        <div class="data-list command-distribution">
-          <div v-for="item in commandDistribution" :key="item.type" class="list-row">
-            <span>
-              <strong>{{ item.type }}</strong>
-              <small>来自飞书群 @机器人入口</small>
-            </span>
-            <em class="badge success">{{ item.count }}</em>
-          </div>
-          <p v-if="!commandDistribution.length" class="empty-state">还没有机器人触发记录。</p>
-        </div>
-      </article>
-
       <article class="panel wide">
-        <p class="section-label">Prompt 与运营建议</p>
-        <h2>下一轮优化动作</h2>
-        <div class="suggestion-grid">
-          <article v-for="item in analysis.promptSuggestions" :key="item">{{ item }}</article>
-          <article v-if="!analysis.promptSuggestions?.length">继续积累问答与反馈后再生成分析。</article>
+        <p class="section-label">设备用量日志</p>
+        <h2>{{ selectedDevice?.displayName || selectedDevice?.deviceName || '选择设备查看最近调用' }}</h2>
+        <div class="data-list">
+          <div v-for="log in selectedDevice?.usageLogs || []" :key="log.id" class="list-row">
+            <span>
+              <strong>{{ log.operationType }} · {{ log.status }}</strong>
+              <small>{{ formatDate(log.createTime) }} · {{ log.estimated ? '估算' : '真实' }}</small>
+            </span>
+            <em class="badge">{{ formatNumber((log.requestTokens || 0) + (log.responseTokens || 0)) }}</em>
+          </div>
+          <p v-if="!(selectedDevice?.usageLogs || []).length" class="empty-state">暂无设备调用日志。</p>
         </div>
       </article>
     </section>
@@ -73,16 +111,20 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { skillApi } from '@/api/skill'
+import { userApi } from '@/api/user'
 
 const loading = ref(false)
 const analyzing = ref(false)
+const quotaLoading = ref(false)
 const stats = reactive({ usage: 0, noAnswerCount: 0, failedCount: 0, noAnswerRate: 0, topQuestions: [] })
 const analysis = reactive({ summary: '', knowledgeGaps: [], promptSuggestions: [] })
-const commandDistribution = computed(() =>
-  Object.entries(stats.botCommandDistribution || {})
-    .map(([type, count]) => ({ type, count }))
-    .sort((a, b) => b.count - a.count)
-)
+const adminKey = ref(localStorage.getItem('handoff_admin_key') || '')
+const devices = ref([])
+const selectedDevice = ref(null)
+const quotaMessage = ref('')
+const quotaError = ref(false)
+
+const filteredDevices = computed(() => devices.value)
 
 const refresh = async () => {
   loading.value = true
@@ -102,9 +144,82 @@ const analyze = async () => {
   }
 }
 
-const percent = (value) => `${Math.round((value || 0) * 100)}%`
+const saveAdminKey = () => {
+  localStorage.setItem('handoff_admin_key', adminKey.value)
+  quotaMessage.value = 'Admin Key 已保存到当前浏览器。'
+  quotaError.value = false
+}
 
-onMounted(refresh)
+const loadDevices = async () => {
+  saveAdminKey()
+  quotaLoading.value = true
+  quotaMessage.value = ''
+  try {
+    devices.value = await userApi.adminDevices()
+    quotaMessage.value = `已加载 ${devices.value.length} 台设备。`
+    quotaError.value = false
+  } catch (error) {
+    quotaMessage.value = error.message || '设备额度加载失败。'
+    quotaError.value = true
+  } finally {
+    quotaLoading.value = false
+  }
+}
+
+const saveDevice = async (device) => {
+  try {
+    const updated = await userApi.updateDeviceQuota(device.deviceId, {
+      displayName: device.displayName || device.deviceName,
+      quotaLimit: device.quotaLimit,
+      whitelistEnabled: device.whitelistEnabled,
+      enabled: device.enabled
+    })
+    Object.assign(device, updated)
+    quotaMessage.value = '设备额度已保存。'
+    quotaError.value = false
+  } catch (error) {
+    quotaMessage.value = error.message || '保存失败。'
+    quotaError.value = true
+  }
+}
+
+const resetDevice = async (device) => {
+  try {
+    const quota = await userApi.resetDeviceQuota(device.deviceId)
+    device.quotaUsed = quota.used
+    device.remaining = quota.remaining
+    quotaMessage.value = '设备用量已重置。'
+    quotaError.value = false
+  } catch (error) {
+    quotaMessage.value = error.message || '重置失败。'
+    quotaError.value = true
+  }
+}
+
+const selectDevice = async (device) => {
+  try {
+    selectedDevice.value = await userApi.adminDeviceDetail(device.deviceId)
+  } catch (error) {
+    selectedDevice.value = device
+    quotaMessage.value = error.message || '用量日志加载失败。'
+    quotaError.value = true
+  }
+}
+
+const quotaPercent = (device) => {
+  if (device.whitelistEnabled) return 100
+  if (!device.quotaLimit) return 0
+  return Math.max(0, Math.min(100, Math.round(((device.quotaLimit - device.quotaUsed) / device.quotaLimit) * 100)))
+}
+
+const percent = (value) => `${Math.round((value || 0) * 100)}%`
+const formatNumber = (value) => Number(value || 0).toLocaleString('zh-CN')
+const formatDate = (date) => date ? new Date(date).toLocaleString('zh-CN') : '-'
+
+onMounted(() => {
+  refresh()
+  if (adminKey.value) loadDevices()
+})
 </script>
 
 <style scoped>
@@ -118,15 +233,121 @@ onMounted(refresh)
   grid-column: 1 / -1;
 }
 
-.gap-list,
-.suggestion-grid {
+.panel-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-key-box {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-key-box input,
+.compact-field input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 9px 10px;
+  color: var(--text);
+}
+
+.inline-message {
+  margin: 0 0 12px;
+  color: var(--green);
+}
+
+.inline-message.error {
+  color: var(--red);
+}
+
+.quota-table {
+  display: grid;
+  gap: 10px;
+}
+
+.device-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 1fr) 120px auto auto auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  padding: 12px;
+}
+
+.device-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.device-main code,
+.device-main small {
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.quota-progress {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 9px 10px;
+}
+
+.quota-progress span {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.quota-progress i {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 3px;
+  background: var(--blue);
+}
+
+.compact-field,
+.toggle-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.compact-field {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.device-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.ghost-btn.danger {
+  color: var(--red);
+}
+
+.gap-list {
   display: grid;
   gap: 10px;
   margin-top: 14px;
 }
 
-.gap-list article,
-.suggestion-grid article {
+.gap-list article {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--panel-soft);
@@ -134,18 +355,21 @@ onMounted(refresh)
   color: var(--text-muted);
 }
 
-.suggestion-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .quality-layout,
-  .suggestion-grid {
+  .device-row {
     grid-template-columns: 1fr;
   }
 
   .wide {
     grid-column: auto;
+  }
+
+  .panel-top,
+  .admin-key-box,
+  .device-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

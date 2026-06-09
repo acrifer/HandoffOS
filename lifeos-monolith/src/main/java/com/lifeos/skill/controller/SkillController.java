@@ -33,7 +33,7 @@ public class SkillController {
         try {
             return Result.success(skillService.create(resolveUserId(servletRequest, userId), body));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -45,7 +45,7 @@ public class SkillController {
         try {
             return Result.success(skillService.list(resolveUserId(servletRequest, userId)));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -58,7 +58,7 @@ public class SkillController {
         try {
             return Result.success(skillService.getDetail(resolveUserId(servletRequest, userId), skillId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -72,7 +72,7 @@ public class SkillController {
         try {
             return Result.success(skillService.syncSources(resolveUserId(servletRequest, userId), skillId, body));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -85,7 +85,7 @@ public class SkillController {
         try {
             return Result.success(skillService.distill(resolveUserId(servletRequest, userId), skillId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -99,7 +99,7 @@ public class SkillController {
         try {
             return Result.success(skillService.ask(resolveUserId(servletRequest, userId), skillId, body));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -113,7 +113,7 @@ public class SkillController {
         try {
             return Result.success(skillService.listJobs(resolveUserId(servletRequest, userId), skillId, limit));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 

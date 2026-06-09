@@ -3,6 +3,8 @@ package com.lifeos.ai.insight;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifeos.config.AiProperties;
+import com.lifeos.demo.exception.ApiException;
+import com.lifeos.demo.service.DemoDeviceService;
 import com.lifeos.note.entity.Note;
 import com.lifeos.note.repository.NoteRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ public class InsightEngine {
     private final NoteRepository noteRepository;
     private final LearningPatternAnalyzer patternAnalyzer;
     private final AiProperties aiProperties;
+    private final DemoDeviceService demoDeviceService;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -245,9 +248,17 @@ public class InsightEngine {
 
         try {
             String prompt = buildSummaryPrompt(period, statistics, clusters, patterns);
-            return callLLM(prompt);
+            long estimatedTokens = demoDeviceService.estimateTokens(prompt);
+            demoDeviceService.requireAvailable(userId, "INSIGHT_SUMMARY", estimatedTokens);
+            String summary = callLLM(prompt);
+            demoDeviceService.recordUsage(userId, null, "SELF_LLM", "INSIGHT_SUMMARY",
+                    estimatedTokens, demoDeviceService.estimateTokens(summary), true, null, "SUCCESS");
+            return summary;
 
         } catch (Exception e) {
+            if (e instanceof ApiException) {
+                throw (ApiException) e;
+            }
             log.error("Failed to generate summary via LLM: {}", e.getMessage());
             throw new IllegalStateException("Failed to generate summary via LLM: " + e.getMessage(), e);
         }

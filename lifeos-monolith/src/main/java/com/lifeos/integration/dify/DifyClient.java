@@ -252,6 +252,7 @@ public class DifyClient {
         run.setAnswer(answer);
         run.setOutputs(outputMap);
         run.setCitations(extractCitations(root));
+        applyUsage(run, root);
         run.setDemo(compatibilityDemoFlag);
         if ((run.getAnswer() == null || run.getAnswer().isBlank()) && run.getOutputs().isEmpty()) {
             throw new IllegalStateException("Dify workflow returned empty outputs");
@@ -267,6 +268,7 @@ public class DifyClient {
         run.setAnswer(root.path("answer").asText(firstText(root.path("data"), "answer", "result")));
         run.setOutputs(Map.of("answer", run.getAnswer()));
         run.setCitations(extractCitations(root));
+        applyUsage(run, root);
         run.setDemo(compatibilityDemoFlag);
         if (run.getAnswer() == null || run.getAnswer().isBlank()) {
             throw new IllegalStateException("Dify chat response returned empty answer");
@@ -286,6 +288,41 @@ public class DifyClient {
             }
         }
         return citations;
+    }
+
+    private void applyUsage(DifyRunResponse run, JsonNode root) {
+        JsonNode usage = root.path("metadata").path("usage");
+        if (usage.isMissingNode() || usage.isNull()) {
+            usage = root.path("usage");
+        }
+        if (usage.isMissingNode() || usage.isNull()) {
+            usage = root.path("data").path("usage");
+        }
+        long promptTokens = firstLong(usage, "prompt_tokens", "input_tokens", "promptTokens", "inputTokens");
+        long completionTokens = firstLong(usage, "completion_tokens", "output_tokens", "completionTokens", "outputTokens");
+        long totalTokens = firstLong(usage, "total_tokens", "totalTokens");
+        if (totalTokens == 0L && (promptTokens > 0L || completionTokens > 0L)) {
+            totalTokens = promptTokens + completionTokens;
+        }
+        if (totalTokens > 0L) {
+            run.setRequestTokens(promptTokens);
+            run.setResponseTokens(completionTokens);
+            run.setTotalTokens(totalTokens);
+            run.setUsageEstimated(false);
+        }
+    }
+
+    private long firstLong(JsonNode node, String... names) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return 0L;
+        }
+        for (String name : names) {
+            JsonNode value = node.path(name);
+            if (value.isNumber()) {
+                return value.asLong();
+            }
+        }
+        return 0L;
     }
 
     private HttpHeaders headers(String apiKey) {

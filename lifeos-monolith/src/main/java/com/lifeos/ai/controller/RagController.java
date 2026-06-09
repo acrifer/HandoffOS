@@ -36,7 +36,7 @@ public class RagController {
             RagQueryResponse response = ragQueryService.query(userId, request);
             return Result.success(response);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -49,7 +49,7 @@ public class RagController {
             stats.put("embeddingCoverage", vectorRepository.getEmbeddingCoverage(userId));
             return Result.success(stats);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 }

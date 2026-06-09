@@ -17,5 +17,9 @@ public class DifyRunResponse {
     private String answer;
     private Map<String, Object> outputs;
     private List<String> citations = new ArrayList<>();
+    private Long requestTokens;
+    private Long responseTokens;
+    private Long totalTokens;
+    private boolean usageEstimated = true;
     private boolean demo;
 }

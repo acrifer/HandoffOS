@@ -3,6 +3,8 @@ package com.lifeos.ai.rag;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifeos.config.AiProperties;
+import com.lifeos.demo.exception.ApiException;
+import com.lifeos.demo.service.DemoDeviceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -25,6 +27,7 @@ public class RagQueryService {
 
     private final VectorRepository vectorRepository;
     private final AiProperties aiProperties;
+    private final DemoDeviceService demoDeviceService;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -50,10 +53,14 @@ public class RagQueryService {
             // Step 2: Build context from retrieved notes
             log.info("RAG Query - Step 2: Building context from {} notes", similarNotes.size());
             String context = buildContext(similarNotes);
+            long estimatedTokens = demoDeviceService.estimateTokens(request.getQuery(), context);
+            demoDeviceService.requireAvailable(userId, "RAG_QUERY", estimatedTokens);
 
             // Step 3: Generate answer using LLM
             log.info("RAG Query - Step 3: Generating answer with LLM");
             String answer = generateAnswer(request.getQuery(), context);
+            demoDeviceService.recordUsage(userId, null, "SELF_RAG", "RAG_QUERY",
+                    estimatedTokens, demoDeviceService.estimateTokens(answer), true, null, "SUCCESS");
 
             // Step 4: Build response with citations
             List<CitedNote> citations = similarNotes.stream()
@@ -73,7 +80,14 @@ public class RagQueryService {
             return response;
 
         } catch (Exception e) {
+            if (e instanceof ApiException) {
+                throw (ApiException) e;
+            }
             log.error("RAG Query failed: {}", e.getMessage(), e);
+            if (!(e instanceof ApiException)) {
+                demoDeviceService.recordUsage(userId, null, "SELF_RAG", "RAG_QUERY",
+                        1L, 0L, true, null, "FAILED");
+            }
             throw new IllegalStateException("RAG Query failed: " + e.getMessage(), e);
         }
     }

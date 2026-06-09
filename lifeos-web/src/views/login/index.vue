@@ -1,24 +1,24 @@
 <template>
   <div class="login-page">
     <section class="intro-panel">
-      <p class="eyebrow">HandoffOS</p>
-      <h1>进入团队交接 AI 控制台。</h1>
+      <p class="eyebrow">HandoffOS Demo</p>
+      <h1>无需账号，按设备进入交接 AI 控制台。</h1>
       <p class="intro-copy">
-        聚合飞书文档、群聊资料和 Dify Knowledge，把项目经验蒸馏成可问答、可审计的交接 Skill。
+        当前项目用于面试展示。系统会为每台浏览器设备生成独立演示空间，并按设备统计 Dify / AI token 额度。
       </p>
 
       <div class="feature-list">
         <article>
-          <strong>资料接入</strong>
-          <span>同步飞书文档和群聊，也支持手动补充交接材料。</span>
+          <strong>设备独立数据</strong>
+          <span>不同浏览器设备创建的 Skill、资料、问答和任务互相隔离。</span>
         </article>
         <article>
-          <strong>Skill 蒸馏</strong>
-          <span>把角色边界、工作原则、检查清单和风险点结构化。</span>
+          <strong>额度可控</strong>
+          <span>AI 调用前检查 token 额度，管理员可在白名单面板调整。</span>
         </article>
         <article>
-          <strong>RAG 问答</strong>
-          <span>基于知识库回答新人问题，并保留引用、反馈和作业日志。</span>
+          <strong>真实链路</strong>
+          <span>飞书、Dify、RAG 和机器人失败即报错，不再使用 mock fallback。</span>
         </article>
       </div>
     </section>
@@ -26,51 +26,19 @@
     <section class="auth-panel">
       <div class="auth-card">
         <div class="auth-header">
-          <h2>{{ isLogin ? '登录账号' : '创建账号' }}</h2>
-          <p>{{ isLogin ? '继续进入 Skill 工作台。' : '创建演示账号后开始搭建交接助手。' }}</p>
+          <h2>进入演示控制台</h2>
+          <p>设备 ID 会保存在当前浏览器 localStorage 中。</p>
         </div>
 
-        <form class="form-area" @submit.prevent="handleSubmit">
-          <label>
-            <span>用户名</span>
-            <input
-              v-model="form.username"
-              type="text"
-              placeholder="请输入用户名"
-              required
-            />
-          </label>
+        <div class="device-box">
+          <span>当前设备</span>
+          <code>{{ deviceId }}</code>
+        </div>
 
-          <label v-if="!isLogin">
-            <span>邮箱</span>
-            <input
-              v-model="form.email"
-              type="email"
-              placeholder="用于接收账号信息"
-            />
-          </label>
+        <div v-if="errorMessage" class="feedback">{{ errorMessage }}</div>
 
-          <label>
-            <span>密码</span>
-            <input
-              v-model="form.password"
-              type="password"
-              placeholder="请输入密码"
-              required
-            />
-          </label>
-
-          <div v-if="errorMessage" class="feedback" :class="{ success: !isLogin && errorMessage.includes('注册成功') }">
-            {{ errorMessage }}
-          </div>
-
-          <button type="submit" class="submit-btn" :disabled="loading">
-            {{ loading ? '提交中...' : (isLogin ? '登录' : '注册') }}
-          </button>
-        </form>
-
-        <button type="button" class="switch-btn" @click="toggleMode">
-          {{ isLogin ? '没有账号？去注册' : '已有账号？去登录' }}
+        <button type="button" class="submit-btn" :disabled="loading" @click="enterDemo">
+          {{ loading ? '进入中...' : '进入 HandoffOS' }}
         </button>
       </div>
     </section>
@@ -78,71 +46,31 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { userApi } from '@/api/user'
+import { ensureDeviceSession, getDeviceId } from '@/utils/deviceAuth'
 
 const router = useRouter()
-
-const isLogin = ref(true)
 const loading = ref(false)
 const errorMessage = ref('')
+const deviceId = ref(getDeviceId())
 
-const form = reactive({
-  username: '',
-  email: '',
-  password: ''
-})
-
-const resetForm = () => {
-  form.username = ''
-  form.email = ''
-  form.password = ''
-}
-
-const toggleMode = () => {
-  isLogin.value = !isLogin.value
-  errorMessage.value = ''
-  resetForm()
-}
-
-const handleSubmit = async () => {
-  if (!form.username || !form.password) {
-    return
-  }
-
+const enterDemo = async () => {
   loading.value = true
   errorMessage.value = ''
-
   try {
-    if (isLogin.value) {
-      const loginResult = await userApi.login({
-        username: form.username,
-        password: form.password
-      })
-      const token = typeof loginResult === 'string' ? loginResult : loginResult?.token
-      if (!token) {
-        throw new Error('登录响应缺少 token')
-      }
-      localStorage.setItem('lifeos_token', token)
-      router.push('/skill')
-      return
-    }
-
-    await userApi.register({
-      username: form.username,
-      password: form.password,
-      email: form.email
-    })
-    isLogin.value = true
-    errorMessage.value = '注册成功，请登录。'
-    form.password = ''
+    await ensureDeviceSession()
+    router.push('/skill')
   } catch (error) {
-    errorMessage.value = error.message || '操作失败，请稍后重试。'
+    errorMessage.value = error.message || '设备演示登录失败'
   } finally {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  enterDemo()
+})
 </script>
 
 <style scoped>
@@ -169,25 +97,25 @@ const handleSubmit = async () => {
 
 .eyebrow {
   margin: 0;
-  color: #0b5f6f;
+  color: var(--blue);
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.16em;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .intro-panel h1 {
   margin: 0;
-  max-width: 640px;
+  max-width: 680px;
   font-size: 52px;
   line-height: 1.08;
-  color: #102033;
+  color: var(--text);
 }
 
 .intro-copy {
   margin: 0;
-  max-width: 560px;
-  color: #5f7389;
+  max-width: 580px;
+  color: var(--text-muted);
   font-size: 18px;
 }
 
@@ -197,23 +125,28 @@ const handleSubmit = async () => {
   width: min(100%, 580px);
 }
 
-.feature-list article {
-  padding: 18px 20px;
+.feature-list article,
+.auth-card,
+.device-box {
   border-radius: var(--radius);
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
+.feature-list article {
+  padding: 18px 20px;
+}
+
 .feature-list strong {
   display: block;
   margin-bottom: 6px;
-  color: #102033;
+  color: var(--text);
   font-size: 18px;
 }
 
 .feature-list span {
-  color: #61778d;
+  color: var(--text-muted);
 }
 
 .auth-panel {
@@ -223,130 +156,79 @@ const handleSubmit = async () => {
 .auth-card {
   width: min(100%, 460px);
   padding: 34px;
-  border-radius: var(--radius);
-  background: var(--panel);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
 }
 
 .auth-header {
-  margin-bottom: 26px;
+  margin-bottom: 22px;
 }
 
 .auth-header h2 {
   margin: 0 0 8px;
   font-size: 30px;
-  color: #102033;
+  color: var(--text);
 }
 
 .auth-header p {
   margin: 0;
-  color: #61778d;
+  color: var(--text-muted);
 }
 
-.form-area {
-  display: grid;
-  gap: 18px;
-}
-
-.form-area label {
+.device-box {
   display: grid;
   gap: 8px;
-  color: #475b71;
-  font-size: 14px;
-  font-weight: 600;
+  margin-bottom: 18px;
+  padding: 14px;
+  background: var(--panel-soft);
 }
 
-.form-area input {
-  width: 100%;
-  border: 1px solid #cfdae4;
-  background: #f8fbfd;
-  color: #102033;
-  border-radius: 16px;
-  padding: 13px 14px;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+.device-box span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
 }
 
-.form-area input:focus {
-  border-color: #0f766e;
-  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
+.device-box code {
+  word-break: break-all;
+  color: var(--text);
 }
 
 .feedback {
+  margin-bottom: 14px;
   padding: 12px 14px;
-  border-radius: 14px;
-  color: #b42318;
-  background: rgba(180, 35, 24, 0.08);
-}
-
-.feedback.success {
-  color: #0f6e53;
-  background: rgba(15, 118, 110, 0.08);
-}
-
-.submit-btn,
-.switch-btn {
-  width: 100%;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  border-radius: var(--radius);
+  color: var(--red);
+  background: #fef2f2;
 }
 
 .submit-btn {
-  margin-top: 6px;
+  width: 100%;
+  border: 1px solid var(--blue);
+  cursor: pointer;
   padding: 14px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #0f766e, #0f4c81);
+  border-radius: var(--radius);
+  background: var(--blue);
   color: white;
   font-size: 16px;
-  font-weight: 700;
-  box-shadow: 0 18px 30px rgba(15, 76, 129, 0.18);
+  font-weight: 800;
 }
 
 .submit-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
-.switch-btn {
-  margin-top: 16px;
-  padding: 12px 0 0;
-  background: transparent;
-  color: #0b5f6f;
-  font-weight: 700;
-}
-
-@media (max-width: 1024px) {
+@media (max-width: 900px) {
   .login-page {
     grid-template-columns: 1fr;
   }
 
-  .intro-panel {
-    padding-bottom: 20px;
-  }
-
-  .auth-panel {
-    padding-top: 0;
-  }
-}
-
-@media (max-width: 720px) {
   .intro-panel,
   .auth-panel {
-    padding: 24px;
+    padding: 28px;
   }
 
   .intro-panel h1 {
     font-size: 34px;
-  }
-
-  .intro-copy {
-    font-size: 16px;
-  }
-
-  .auth-card {
-    padding: 24px;
   }
 }
 </style>

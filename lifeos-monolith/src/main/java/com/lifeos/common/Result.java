@@ -1,5 +1,6 @@
 package com.lifeos.common;
 
+import com.lifeos.demo.exception.ApiException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,5 +31,12 @@ public class Result<T> {
 
     public static <T> Result<T> error(Integer code, String message) {
         return new Result<>(code, message, null);
+    }
+
+    public static <T> Result<T> error(Exception e) {
+        if (e instanceof ApiException apiException) {
+            return new Result<>(apiException.getCode(), apiException.getMessage(), null);
+        }
+        return error(e.getMessage());
     }
 }

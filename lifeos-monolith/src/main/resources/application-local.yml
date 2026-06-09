@@ -32,6 +32,11 @@ jwt:
   secret: your-secret-key-must-be-at-least-32-characters-long
   expiration: 86400000
 
+demo:
+  admin-key: ${ADMIN_CONSOLE_KEY:change-me-admin-key}
+  device:
+    default-token-limit: ${DEMO_DEVICE_TOKEN_LIMIT:100000}
+
 # AI 配置（需要真实 API Key）
 ai:
   base-url: https://api.deepseek.com

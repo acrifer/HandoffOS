@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { ensureDeviceSession, getDeviceToken } from '@/utils/deviceAuth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -62,15 +63,22 @@ const router = createRouter({
 })
 
 // Navigation Guard
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('lifeos_token')
+router.beforeEach(async (to, from, next) => {
+  const token = getDeviceToken()
   if (to.path !== '/login' && !token) {
-    next('/login')
-  } else if (to.path === '/login' && token) {
-    next('/skill')
-  } else {
-    next()
+    try {
+      await ensureDeviceSession()
+      next()
+    } catch (error) {
+      next('/login')
+    }
+    return
   }
+  if (to.path === '/login' && token) {
+    next('/skill')
+    return
+  }
+  next()
 })
 
 export default router

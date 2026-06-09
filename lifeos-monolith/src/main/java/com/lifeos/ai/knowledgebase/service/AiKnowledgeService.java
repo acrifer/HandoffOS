@@ -7,6 +7,8 @@ import com.lifeos.ai.job.service.AiWorkflowJobService;
 import com.lifeos.ai.knowledgebase.dto.*;
 import com.lifeos.ai.knowledgebase.entity.*;
 import com.lifeos.ai.knowledgebase.repository.*;
+import com.lifeos.demo.exception.ApiException;
+import com.lifeos.demo.service.DemoDeviceService;
 import com.lifeos.integration.dify.DifyClient;
 import com.lifeos.integration.dify.DifyDatasetResponse;
 import com.lifeos.integration.dify.DifyDocumentResponse;
@@ -55,6 +57,7 @@ public class AiKnowledgeService {
     private final PlatformTransactionManager transactionManager;
     private final FeishuBotEventRepository feishuBotEventRepository;
     private final FeishuChatBindingRepository feishuChatBindingRepository;
+    private final DemoDeviceService demoDeviceService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
@@ -115,6 +118,8 @@ public class AiKnowledgeService {
             replaceChunks(document);
         }
 
+        long estimatedTokens = demoDeviceService.estimateTokens(document.getTitle(), document.getRawContent(), document.getSummary());
+        demoDeviceService.requireAvailable(userId, "DOCUMENT_VECTORIZE", estimatedTokens);
         DifyDocumentResponse difyDocument = difyClient.upsertDocument(
                 skill.getDifyDatasetId(),
                 document.getTitle(),
@@ -126,6 +131,8 @@ public class AiKnowledgeService {
 
         createMappings(document, skill.getDifyDatasetId(), difyDocument.getDocumentId(),
                 firstNonBlank(request.getEmbeddingModel(), "dify-managed"), document.getStatus());
+        demoDeviceService.recordUsage(userId, skillId, "DIFY_KNOWLEDGE", "DOCUMENT_VECTORIZE",
+                estimatedTokens, 0L, true, difyDocument.getDocumentId(), "SUCCESS");
         return Map.of(
                 "documentId", documentId,
                 "difyDatasetId", skill.getDifyDatasetId(),
@@ -166,6 +173,8 @@ public class AiKnowledgeService {
         long started = System.nanoTime();
         AiWorkflowJob job = jobService.startJob(userId, skillId, "SKILL_ASK", Map.of("question", question));
         try {
+            long estimatedTokens = demoDeviceService.estimateTokens(question);
+            demoDeviceService.requireAvailable(userId, "KNOWLEDGE_ASK", estimatedTokens);
             DifyRunResponse run = difyClient.askSkill(skill.getName(), skill.getDifyDatasetId(), question, "user-" + userId);
             String answer = firstNonBlank(run.getAnswer());
             if (answer.isBlank()) {
@@ -183,6 +192,14 @@ public class AiKnowledgeService {
                     "qaLogId", log.getId(),
                     "noAnswer", noAnswer
             ), run.getWorkflowRunId());
+            long requestTokens = run.getRequestTokens() == null || run.getRequestTokens() == 0L
+                    ? estimatedTokens
+                    : run.getRequestTokens();
+            long responseTokens = run.getResponseTokens() == null || run.getResponseTokens() == 0L
+                    ? demoDeviceService.estimateTokens(answer)
+                    : run.getResponseTokens();
+            demoDeviceService.recordUsage(userId, skillId, "DIFY_CHATFLOW", "KNOWLEDGE_ASK",
+                    requestTokens, responseTokens, run.isUsageEstimated(), run.getWorkflowRunId(), "SUCCESS");
 
             QaAnswerResponse response = new QaAnswerResponse();
             response.setAnswer(answer);
@@ -197,6 +214,10 @@ public class AiKnowledgeService {
             int latencyMs = (int) Duration.ofNanos(System.nanoTime() - started).toMillis();
             saveQaLogRequiresNew(userId, skillId, question, "", List.of(), null, null, latencyMs, "FAILED", false);
             jobService.markFailed(job, e);
+            if (!(e instanceof ApiException)) {
+                demoDeviceService.recordUsage(userId, skillId, "DIFY_CHATFLOW", "KNOWLEDGE_ASK",
+                        1L, 0L, true, null, "FAILED");
+            }
             throw e;
         }
     }

@@ -7,6 +7,9 @@ import com.lifeos.ai.knowledge.entity.KnowledgeRelation;
 import com.lifeos.ai.knowledge.repository.KnowledgeEntityRepository;
 import com.lifeos.ai.knowledge.repository.KnowledgeRelationRepository;
 import com.lifeos.config.AiProperties;
+import com.lifeos.demo.exception.ApiException;
+import com.lifeos.demo.service.DemoDeviceService;
+import com.lifeos.skill.repository.HandoffSkillRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -29,7 +32,9 @@ public class KnowledgeGraphService {
 
     private final KnowledgeEntityRepository entityRepository;
     private final KnowledgeRelationRepository relationRepository;
+    private final HandoffSkillRepository skillRepository;
     private final AiProperties aiProperties;
+    private final DemoDeviceService demoDeviceService;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -39,6 +44,9 @@ public class KnowledgeGraphService {
     @Transactional
     public void buildKnowledgeGraph(Long skillId, List<String> sourceTexts) {
         log.info("Building knowledge graph for skill {}", skillId);
+        Long userId = resolveUserId(skillId);
+        long estimatedTokens = sourceTexts.stream().mapToLong(text -> demoDeviceService.estimateTokens(text)).sum();
+        demoDeviceService.requireAvailable(userId, "KNOWLEDGE_GRAPH_BUILD", Math.max(1L, estimatedTokens));
 
         // Clear existing graph
         entityRepository.deleteBySkillId(skillId);
@@ -53,6 +61,8 @@ public class KnowledgeGraphService {
                 skillId,
                 entityRepository.countBySkillId(skillId),
                 relationRepository.countBySkillId(skillId));
+        demoDeviceService.recordUsage(userId, skillId, "SELF_LLM", "KNOWLEDGE_GRAPH_BUILD",
+                estimatedTokens, 0L, true, null, "SUCCESS");
     }
 
     /**
@@ -206,5 +216,11 @@ public class KnowledgeGraphService {
         graph.put("relationCount", relations.size());
 
         return graph;
+    }
+
+    private Long resolveUserId(Long skillId) {
+        return skillRepository.findById(skillId)
+                .map(skill -> skill.getUserId())
+                .orElseThrow(() -> new ApiException(404, "Skill owner not found"));
     }
 }

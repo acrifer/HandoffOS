@@ -29,7 +29,7 @@ public class AiWorkflowJobController {
         try {
             return Result.success(jobService.listJobs(resolveUserId(servletRequest, userId), null, jobType, limit));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -41,7 +41,7 @@ public class AiWorkflowJobController {
         try {
             return Result.success(jobService.getJob(resolveUserId(servletRequest, userId), jobId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 

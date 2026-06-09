@@ -38,7 +38,7 @@ public class NoteCompatController {
         try {
             return Result.success(noteService.createNote(resolveUserId(servletRequest, userId), request).getId());
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -53,7 +53,7 @@ public class NoteCompatController {
             }
             return Result.success(noteService.updateNote(resolveUserId(servletRequest, userId), request.getId(), request));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -66,7 +66,7 @@ public class NoteCompatController {
             noteService.deleteNote(resolveUserId(servletRequest, userId), noteId);
             return Result.success();
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -77,7 +77,7 @@ public class NoteCompatController {
         try {
             return Result.success(sortedNotes(resolveUserId(servletRequest, userId)).stream().map(this::toResponse).toList());
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -108,7 +108,7 @@ public class NoteCompatController {
                     .toList();
             return Result.success(notes);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -123,7 +123,7 @@ public class NoteCompatController {
                     .orElseThrow(() -> new RuntimeException("Note not found"));
             return Result.success(toResponse(note));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -141,7 +141,7 @@ public class NoteCompatController {
             noteRepository.save(note);
             return Result.success(toResponse(note));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -167,7 +167,7 @@ public class NoteCompatController {
             }
             return Result.success(noteService.updateNote(resolvedUserId, noteId, update));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 

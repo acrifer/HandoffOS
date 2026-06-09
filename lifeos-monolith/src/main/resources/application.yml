@@ -45,6 +45,12 @@ jwt:
   secret: ${JWT_SECRET:your-secret-key-must-be-at-least-32-characters-long}
   expiration: 86400000  # 24 hours in milliseconds
 
+# Demo Device Configuration
+demo:
+  admin-key: ${ADMIN_CONSOLE_KEY:}
+  device:
+    default-token-limit: ${DEMO_DEVICE_TOKEN_LIMIT:100000}
+
 # AI Configuration
 ai:
   base-url: ${AI_BASE_URL:https://api.deepseek.com}

@@ -1,260 +1,148 @@
 <template>
   <div class="page-shell account-page">
     <section class="page-header">
-      <div class="hero-copy">
-        <p class="eyebrow">设置</p>
-        <h1>管理控制台账号和演示状态。</h1>
-        <p>查看当前登录账号、修改基础资料，并确认这个账号下的交接资料和行动项规模。</p>
+      <div>
+        <p class="eyebrow">演示设置</p>
+        <h1>设备额度与飞书机器人。</h1>
+        <p>当前环境不需要账号。每台登录设备拥有独立数据空间和 AI token 额度。</p>
       </div>
-
-      <div class="hero-stats">
-        <article>
-          <strong>{{ dashboard.noteCount || 0 }}</strong>
-          <span>交接资料</span>
-        </article>
-        <article>
-          <strong>{{ dashboard.pendingTaskCount || 0 }}</strong>
-          <span>待处理行动</span>
-        </article>
-        <article>
-          <strong>{{ dashboard.weekCompletedTaskCount || 0 }}</strong>
-          <span>本周完成</span>
-        </article>
-      </div>
+      <button class="ghost-btn danger" @click="resetSession">重置当前设备登录</button>
     </section>
 
-    <section v-if="loading" class="state-card">
-      <div class="spinner"></div>
-      <p>正在加载账户信息...</p>
+    <section class="metric-grid">
+      <article class="metric-card"><span>设备 ID</span><strong>{{ shortDeviceId }}</strong></article>
+      <article class="metric-card"><span>额度上限</span><strong>{{ quota.whitelisted ? '不限额' : formatNumber(quota.limit) }}</strong></article>
+      <article class="metric-card"><span>已用 token</span><strong>{{ formatNumber(quota.used) }}</strong></article>
+      <article class="metric-card"><span>剩余 token</span><strong>{{ quota.whitelisted ? '白名单' : formatNumber(quota.remaining) }}</strong></article>
     </section>
 
-    <section v-else-if="user" class="content-grid">
-      <article class="profile-card">
-        <div class="profile-head">
-          <div class="avatar">{{ user.username?.charAt(0)?.toUpperCase() || 'U' }}</div>
+    <section class="content-grid">
+      <article class="panel-card">
+        <div class="panel-header row">
           <div>
-            <h2>{{ user.username }}</h2>
-            <p>{{ user.email || '未填写邮箱' }}</p>
+            <h3>设备演示态</h3>
+            <p>管理员可在质量统计页通过白名单和额度调节控制当前设备。</p>
           </div>
+          <button class="ghost-btn" :disabled="quotaLoading" @click="fetchQuota">{{ quotaLoading ? '刷新中...' : '刷新额度' }}</button>
         </div>
-
-        <div class="meta-grid">
-          <div class="meta-item">
-            <span>用户 ID</span>
-            <strong>#{{ user.id }}</strong>
-          </div>
-          <div class="meta-item">
-            <span>注册时间</span>
-            <strong>{{ formatDate(user.createTime) }}</strong>
-          </div>
-          <div class="meta-item">
-            <span>当前状态</span>
-            <strong>已登录</strong>
-          </div>
+        <div class="device-box">
+          <span>完整设备 ID</span>
+          <code>{{ deviceId }}</code>
         </div>
-
-        <div class="helper-card">
-          <h3>管理建议</h3>
-          <ul>
-            <li>修改用户名后，当前登录态会自动刷新。</li>
-            <li>建议补全邮箱，便于后续扩展通知或找回能力。</li>
-            <li>修改密码后，当前会话会继续保持登录，但会刷新为新令牌。</li>
-          </ul>
+        <div class="quota-bar">
+          <i :style="{ width: `${quotaPercent}%` }"></i>
         </div>
-
-        <button class="danger-btn" :disabled="loggingOut" @click="handleLogout">
-          {{ loggingOut ? '退出中...' : '退出登录' }}
-        </button>
+        <p class="muted">
+          {{ quota.whitelisted ? '当前设备处于管理员白名单，不消耗配额。' : `当前剩余额度 ${formatNumber(quota.remaining)} token。` }}
+        </p>
       </article>
 
-      <div class="manage-column">
-        <article class="panel-card">
-          <div class="panel-header">
-            <div>
-              <h3>基础资料</h3>
-              <p>更新当前账号可编辑的信息。</p>
-            </div>
+      <article class="panel-card">
+        <div class="panel-header row">
+          <div>
+            <h3>飞书机器人</h3>
+            <p>把飞书群 chat_id 绑定到 Skill，群内 @机器人即可同步资料、问答和创建行动项。</p>
           </div>
+          <button class="ghost-btn" type="button" :disabled="botLoading" @click="fetchBotData">
+            {{ botLoading ? '刷新中...' : '刷新' }}
+          </button>
+        </div>
 
-          <form class="form-grid" @submit.prevent="submitProfile">
-            <label>
-              <span>用户名</span>
-              <input v-model="profileForm.username" type="text" placeholder="当前环境不支持修改用户名" disabled />
-            </label>
-            <label>
-              <span>邮箱</span>
-              <input v-model="profileForm.email" type="email" placeholder="请输入邮箱" />
-            </label>
+        <div class="bot-status-grid">
+          <article>
+            <span>飞书凭证</span>
+            <strong :class="botStatus.credentialsConfigured ? 'ok' : 'bad'">
+              {{ botStatus.credentialsConfigured ? '已配置' : '缺失' }}
+            </strong>
+          </article>
+          <article>
+            <span>机器人开关</span>
+            <strong :class="botStatus.botEnabled ? 'ok' : 'bad'">
+              {{ botStatus.botEnabled ? '启用' : '关闭' }}
+            </strong>
+          </article>
+          <article>
+            <span>长连接</span>
+            <strong :class="botStatus.longConnectionEnabled ? 'ok' : 'bad'">
+              {{ botStatus.longConnectionEnabled ? '启用' : '关闭' }}
+            </strong>
+          </article>
+        </div>
 
-            <div v-if="profileMessage" class="message" :class="{ success: profileSuccess }">
-              {{ profileMessage }}
-            </div>
-
-            <div class="form-actions">
-              <button type="button" class="ghost-btn" @click="resetProfileForm">重置</button>
-              <button type="submit" class="primary-btn" :disabled="savingProfile">
-                {{ savingProfile ? '保存中...' : '保存资料' }}
-              </button>
-            </div>
-          </form>
-        </article>
-
-        <article class="panel-card">
-          <div class="panel-header">
-            <div>
-              <h3>演示环境说明</h3>
-              <p>当前后端只开放了登录、注册、邮箱更新和退出接口。</p>
-            </div>
-          </div>
-          <div class="helper-card">
-            <ul>
-              <li>密码修改接口尚未在当前 HandoffOS 后端兼容层开放。</li>
-              <li>如果需要完整账号管理，优先补齐 `/user/password` 与任务兼容接口。</li>
-              <li>本页仍可用于演示登录态、资料规模和邮箱更新能力。</li>
-            </ul>
-          </div>
-        </article>
-
-        <article class="panel-card">
-          <div class="panel-header row">
-            <div>
-              <h3>飞书机器人</h3>
-              <p>把飞书群 chat_id 绑定到 Skill，群内 @机器人即可同步资料、问答和创建行动项。</p>
-            </div>
-            <button class="ghost-btn" type="button" :disabled="botLoading" @click="fetchBotData">
-              {{ botLoading ? '刷新中...' : '刷新' }}
+        <form class="form-grid bot-form" @submit.prevent="bindFeishuChat">
+          <label>
+            <span>chat_id</span>
+            <input v-model.trim="botForm.chatId" type="text" placeholder="oc_xxx" />
+          </label>
+          <label>
+            <span>群名称</span>
+            <input v-model.trim="botForm.chatName" type="text" placeholder="例如：支付交接群" />
+          </label>
+          <label>
+            <span>绑定 Skill</span>
+            <select v-model.number="botForm.skillId">
+              <option :value="null">选择 Skill</option>
+              <option v-for="skill in skills" :key="skill.id" :value="skill.id">{{ skill.name }}</option>
+            </select>
+          </label>
+          <div v-if="botMessage" class="message" :class="{ success: botSuccess }">{{ botMessage }}</div>
+          <div class="form-actions">
+            <button type="submit" class="primary-btn" :disabled="botSaving || !botForm.chatId || !botForm.skillId">
+              {{ botSaving ? '绑定中...' : '绑定飞书群' }}
             </button>
           </div>
+        </form>
 
-          <div class="bot-status-grid">
-            <article>
-              <span>飞书凭证</span>
-              <strong :class="botStatus.credentialsConfigured ? 'ok' : 'bad'">
-                {{ botStatus.credentialsConfigured ? '已配置' : '缺失' }}
-              </strong>
-            </article>
-            <article>
-              <span>机器人开关</span>
-              <strong :class="botStatus.botEnabled ? 'ok' : 'bad'">
-                {{ botStatus.botEnabled ? '启用' : '关闭' }}
-              </strong>
-            </article>
-            <article>
-              <span>长连接</span>
-              <strong :class="botStatus.longConnectionEnabled ? 'ok' : 'bad'">
-                {{ botStatus.longConnectionEnabled ? '启用' : '关闭' }}
-              </strong>
-            </article>
-          </div>
-
-          <form class="form-grid bot-form" @submit.prevent="bindFeishuChat">
-            <label>
-              <span>chat_id</span>
-              <input v-model.trim="botForm.chatId" type="text" placeholder="oc_xxx" />
-            </label>
-            <label>
-              <span>群名称</span>
-              <input v-model.trim="botForm.chatName" type="text" placeholder="例如：支付交接群" />
-            </label>
-            <label>
-              <span>绑定 Skill</span>
-              <select v-model.number="botForm.skillId">
-                <option :value="null">选择 Skill</option>
-                <option v-for="skill in skills" :key="skill.id" :value="skill.id">{{ skill.name }}</option>
-              </select>
-            </label>
-            <div v-if="botMessage" class="message" :class="{ success: botSuccess }">{{ botMessage }}</div>
-            <div class="form-actions">
-              <button type="submit" class="primary-btn" :disabled="botSaving || !botForm.chatId || !botForm.skillId">
-                {{ botSaving ? '绑定中...' : '绑定飞书群' }}
-              </button>
+        <div class="binding-list">
+          <article v-for="binding in botBindings" :key="binding.id" class="binding-item">
+            <div>
+              <strong>{{ binding.chatName || binding.chatId }}</strong>
+              <p>{{ binding.chatId }} · {{ binding.skillName || `Skill #${binding.skillId}` }}</p>
             </div>
-          </form>
+            <div class="binding-actions">
+              <span :class="['badge', binding.enabled ? 'success' : 'warning']">{{ binding.enabled ? '启用' : '停用' }}</span>
+              <button class="ghost-btn" type="button" @click="disableBinding(binding.id)">停用</button>
+            </div>
+          </article>
+          <p v-if="!botBindings.length" class="muted">还没有飞书群绑定。</p>
+        </div>
 
-          <div class="binding-list">
-            <article v-for="binding in botBindings" :key="binding.id" class="binding-item">
-              <div>
-                <strong>{{ binding.chatName || binding.chatId }}</strong>
-                <p>{{ binding.chatId }} · {{ binding.skillName || `Skill #${binding.skillId}` }}</p>
-              </div>
-              <div class="binding-actions">
-                <span :class="['badge', binding.enabled ? 'success' : 'warning']">{{ binding.enabled ? '启用' : '停用' }}</span>
-                <button class="ghost-btn" type="button" @click="disableBinding(binding.id)">停用</button>
-              </div>
-            </article>
-            <p v-if="!botBindings.length" class="muted">还没有飞书群绑定。</p>
-          </div>
-
-          <div class="command-help">
-            <p class="section-label">群内演示指令</p>
-            <button v-for="command in botCommands" :key="command" type="button" class="command-chip" @click="copyCommand(command)">
-              {{ command }}
-            </button>
-          </div>
-
-          <div class="event-list">
-            <p class="section-label">最近事件</p>
-            <article v-for="event in botEvents" :key="event.id" class="event-item">
-              <strong>{{ event.commandType }}</strong>
-              <span :class="['badge', event.status === 'SUCCESS' ? 'success' : event.status === 'FAILED' ? 'danger' : 'warning']">
-                {{ event.status }}
-              </span>
-              <p>{{ event.requestText }}</p>
-              <small v-if="event.errorMessage">{{ event.errorMessage }}</small>
-            </article>
-            <p v-if="!botEvents.length" class="muted">暂无机器人事件。</p>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <section v-else class="state-card error-card">
-      <p>账户信息加载失败，请刷新后重试。</p>
+        <div class="command-help">
+          <p class="section-label">群内演示指令</p>
+          <button v-for="command in botCommands" :key="command" type="button" class="command-chip" @click="copyCommand(command)">
+            {{ command }}
+          </button>
+        </div>
+      </article>
     </section>
   </div>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { behaviorApi } from '@/api/behavior'
+import { clearDeviceToken, getDeviceId } from '@/utils/deviceAuth'
 import { skillApi } from '@/api/skill'
 import { userApi } from '@/api/user'
 
 const router = useRouter()
-
-const user = ref(null)
-const dashboard = ref({})
-const loading = ref(true)
-const savingProfile = ref(false)
-const loggingOut = ref(false)
-const profileMessage = ref('')
-const profileSuccess = ref(false)
+const deviceId = ref(getDeviceId())
+const quota = reactive({ limit: 0, used: 0, remaining: 0, whitelisted: false, enabled: true })
+const quotaLoading = ref(false)
 const skills = ref([])
 const botBindings = ref([])
-const botEvents = ref([])
 const botLoading = ref(false)
 const botSaving = ref(false)
 const botMessage = ref('')
 const botSuccess = ref(false)
-const botStatus = reactive({
-  credentialsConfigured: false,
-  botEnabled: false,
-  longConnectionEnabled: false,
-  bindingCount: 0,
-  eventCount: 0,
-  failedEventCount: 0
-})
+const botStatus = reactive({ credentialsConfigured: false, botEnabled: false, longConnectionEnabled: false })
+const botForm = reactive({ chatId: '', chatName: '', skillId: null })
 
-const profileForm = reactive({
-  username: '',
-  email: ''
-})
-
-const botForm = reactive({
-  chatId: '',
-  chatName: '',
-  skillId: null
+const shortDeviceId = computed(() => deviceId.value.slice(0, 8))
+const quotaPercent = computed(() => {
+  if (quota.whitelisted) return 100
+  if (!quota.limit) return 0
+  return Math.max(0, Math.min(100, Math.round((quota.remaining / quota.limit) * 100)))
 })
 
 const botCommands = [
@@ -268,72 +156,26 @@ const botCommands = [
   '/统计'
 ]
 
-const syncProfileForm = () => {
-  profileForm.username = user.value?.username || ''
-  profileForm.email = user.value?.email || ''
-}
-
-const decodeTokenPayload = (token) => {
+const fetchQuota = async () => {
+  quotaLoading.value = true
   try {
-    const [, payload] = token.split('.')
-    if (!payload) return null
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
-    const json = decodeURIComponent(
-      atob(padded)
-        .split('')
-        .map(char => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
-        .join('')
-    )
-    return JSON.parse(json)
-  } catch (error) {
-    return null
-  }
-}
-
-const fetchPageData = async () => {
-  loading.value = true
-  try {
-    const [userInfo, dashboardStats] = await Promise.all([
-      userApi.getInfo(),
-      behaviorApi.getDashboard().catch(() => ({}))
-    ])
-    user.value = userInfo
-    dashboard.value = dashboardStats || {}
-    syncProfileForm()
-  } catch (error) {
-    const token = localStorage.getItem('lifeos_token')
-    const payload = token ? decodeTokenPayload(token) : null
-    if (payload) {
-      user.value = {
-        id: payload.userId,
-        username: payload.username || payload.sub || 'unknown',
-        email: '',
-        createTime: null
-      }
-      syncProfileForm()
-    } else {
-      console.error('Failed to fetch account page data', error)
-    }
+    Object.assign(quota, await userApi.currentQuota())
   } finally {
-    loading.value = false
+    quotaLoading.value = false
   }
-  await fetchBotData()
 }
 
 const fetchBotData = async () => {
   botLoading.value = true
   try {
-    const [skillList, status, bindings, events] = await Promise.all([
+    const [skillList, status, bindings] = await Promise.all([
       skillApi.list().catch(() => []),
       skillApi.botStatus(),
-      skillApi.botBindings().catch(() => []),
-      skillApi.botEvents({ limit: 8 }).catch(() => [])
+      skillApi.botBindings().catch(() => [])
     ])
     skills.value = skillList || []
     Object.assign(botStatus, status || {})
     botBindings.value = bindings || []
-    botEvents.value = events || []
   } catch (error) {
     botMessage.value = error.message || '飞书机器人状态加载失败。'
     botSuccess.value = false
@@ -342,48 +184,12 @@ const fetchBotData = async () => {
   }
 }
 
-const resetProfileForm = () => {
-  profileMessage.value = ''
-  profileSuccess.value = false
-  syncProfileForm()
-}
-
-const submitProfile = async () => {
-  savingProfile.value = true
-  profileMessage.value = ''
-  profileSuccess.value = false
-
-  try {
-    const response = await userApi.updateProfile({
-      username: profileForm.username,
-      email: profileForm.email
-    })
-    user.value = {
-      ...(user.value || {}),
-      ...(response || {}),
-      username: user.value?.username || profileForm.username
-    }
-    syncProfileForm()
-    profileMessage.value = '资料已更新。'
-    profileSuccess.value = true
-  } catch (error) {
-    profileMessage.value = error.message || '资料更新失败。'
-  } finally {
-    savingProfile.value = false
-  }
-}
-
 const bindFeishuChat = async () => {
   botSaving.value = true
   botMessage.value = ''
   botSuccess.value = false
   try {
-    await skillApi.createBotBinding({
-      chatId: botForm.chatId,
-      chatName: botForm.chatName,
-      skillId: botForm.skillId,
-      enabled: true
-    })
+    await skillApi.createBotBinding({ ...botForm, enabled: true })
     botForm.chatId = ''
     botForm.chatName = ''
     botForm.skillId = null
@@ -413,175 +219,85 @@ const copyCommand = async (command) => {
   try {
     await navigator.clipboard.writeText(command)
     botMessage.value = '指令已复制。'
-    botSuccess.value = true
   } catch (error) {
     botMessage.value = command
-    botSuccess.value = true
   }
+  botSuccess.value = true
 }
 
-const handleLogout = async () => {
-  loggingOut.value = true
-  try {
-    await userApi.logout()
-  } catch (error) {
-    console.error('Failed to logout', error)
-  } finally {
-    localStorage.removeItem('lifeos_token')
-    loggingOut.value = false
-    router.push('/login')
-  }
+const resetSession = () => {
+  clearDeviceToken()
+  router.push('/login')
 }
 
-const formatDate = (dateString) => {
-  if (!dateString) {
-    return '刚刚'
-  }
-  return new Date(dateString).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
+const formatNumber = (value) => Number(value || 0).toLocaleString('zh-CN')
 
 onMounted(() => {
-  fetchPageData()
+  fetchQuota()
+  fetchBotData()
 })
 </script>
 
 <style scoped>
-.profile-card,
-.panel-card,
-.state-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-.hero-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.hero-stats article {
-  padding: 16px;
-  border-radius: var(--radius);
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-}
-
-.hero-stats strong {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 28px;
-  color: var(--navy);
-}
-
-.hero-stats span {
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
 .content-grid {
   display: grid;
-  grid-template-columns: 0.92fr 1.08fr;
-  gap: 18px;
-}
-
-.profile-card {
-  padding: 26px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.profile-head {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.avatar {
-  width: 72px;
-  height: 72px;
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30px;
-  font-weight: 800;
-  color: white;
-  background: var(--blue);
-}
-
-.profile-head h2,
-.panel-header h3,
-.helper-card h3 {
-  margin: 0 0 6px;
-  color: var(--text);
-}
-
-.profile-head p,
-.panel-header p,
-.helper-card li {
-  margin: 0;
-  color: var(--text-muted);
-}
-
-.meta-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.meta-item {
-  padding: 16px;
-  border-radius: var(--radius);
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-}
-
-.meta-item span {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.meta-item strong {
-  color: var(--text);
-  font-size: 16px;
-}
-
-.helper-card {
-  padding: 18px 20px;
-  border-radius: var(--radius);
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-}
-
-.helper-card ul {
-  margin: 0;
-  padding-left: 18px;
-}
-
-.helper-card li + li {
-  margin-top: 10px;
-}
-
-.manage-column {
-  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
   gap: 18px;
 }
 
 .panel-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   padding: 24px;
 }
 
 .panel-header {
   margin-bottom: 18px;
+}
+
+.panel-header h3 {
+  margin: 0 0 6px;
+  color: var(--text);
+}
+
+.panel-header p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.device-box {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  padding: 14px;
+}
+
+.device-box span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.device-box code {
+  word-break: break-all;
+}
+
+.quota-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+  margin: 16px 0;
+}
+
+.quota-bar i {
+  display: block;
+  height: 100%;
+  background: var(--blue);
 }
 
 .form-grid {
@@ -597,32 +313,14 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.form-grid input {
+.form-grid input,
+.form-grid select {
   width: 100%;
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
   border-radius: var(--radius);
   padding: 10px 11px;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.form-grid input:focus {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-}
-
-.message {
-  padding: 12px 14px;
-  border-radius: var(--radius);
-  color: var(--red);
-  background: #fef2f2;
-}
-
-.message.success {
-  color: var(--green);
-  background: #dcfce7;
 }
 
 .bot-status-grid {
@@ -632,7 +330,8 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.bot-status-grid article {
+.bot-status-grid article,
+.binding-item {
   padding: 13px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
@@ -654,24 +353,22 @@ onMounted(() => {
   color: var(--red);
 }
 
-.bot-form {
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
+.message {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  color: var(--red);
+  background: #fef2f2;
 }
 
-.binding-list,
-.event-list {
+.message.success {
+  color: var(--green);
+  background: #dcfce7;
+}
+
+.binding-list {
   display: grid;
   gap: 10px;
   margin-top: 16px;
-}
-
-.binding-item,
-.event-item {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--panel-soft);
-  padding: 13px;
 }
 
 .binding-item {
@@ -681,30 +378,22 @@ onMounted(() => {
   gap: 12px;
 }
 
-.binding-item strong,
-.event-item strong {
-  color: var(--text);
-}
-
-.binding-item p,
-.event-item p,
-.event-item small {
+.binding-item p {
   margin: 4px 0 0;
   color: var(--text-muted);
   word-break: break-all;
 }
 
-.binding-actions {
+.binding-actions,
+.command-help {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .command-help {
   margin-top: 18px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .command-help .section-label {
@@ -721,102 +410,18 @@ onMounted(() => {
   font-size: 13px;
 }
 
-.event-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 10px;
-}
-
-.event-item p,
-.event-item small {
-  grid-column: 1 / -1;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.primary-btn,
-.ghost-btn,
-.danger-btn {
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
-}
-
-.primary-btn {
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  background: var(--blue);
-  border-color: var(--blue);
-  color: white;
-  font-weight: 700;
-}
-
-.ghost-btn {
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  background: var(--panel-soft);
-  border-color: var(--border);
-  color: #334155;
-  font-weight: 700;
-}
-
-.danger-btn {
-  margin-top: auto;
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  background: #fef2f2;
-  border-color: #fecaca;
+.danger {
   color: var(--red);
-  font-weight: 700;
-}
-
-.state-card {
-  min-height: 260px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 14px;
-  color: var(--text-muted);
-}
-
-.error-card {
-  color: var(--red);
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 3px solid rgba(37, 99, 235, 0.18);
-  border-top-color: var(--blue);
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 @media (max-width: 980px) {
   .content-grid,
-  .meta-grid,
-  .hero-stats,
   .bot-status-grid {
     grid-template-columns: 1fr;
   }
 
   .binding-item {
     align-items: stretch;
-    flex-direction: column;
-  }
-
-  .form-actions {
     flex-direction: column;
   }
 }

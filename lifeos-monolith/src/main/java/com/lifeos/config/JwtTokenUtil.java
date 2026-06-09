@@ -43,6 +43,22 @@ public class JwtTokenUtil {
                 .compact();
     }
 
+    public String generateDeviceToken(Long userId, String username, String deviceId) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("username", username);
+        claims.put("deviceId", deviceId);
+        claims.put("role", "DEMO");
+
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(username)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public Long getUserIdFromToken(String token) {
         Claims claims = getClaimsFromToken(token);
         return claims.get("userId", Long.class);
@@ -50,6 +66,14 @@ public class JwtTokenUtil {
 
     public String getUsernameFromToken(String token) {
         return getClaimsFromToken(token).getSubject();
+    }
+
+    public String getDeviceIdFromToken(String token) {
+        return getClaimsFromToken(token).get("deviceId", String.class);
+    }
+
+    public String getRoleFromToken(String token) {
+        return getClaimsFromToken(token).get("role", String.class);
     }
 
     public boolean validateToken(String token) {

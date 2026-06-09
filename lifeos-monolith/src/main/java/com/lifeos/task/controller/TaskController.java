@@ -29,7 +29,7 @@ public class TaskController {
         try {
             return Result.success(taskService.createTask(resolveUserId(servletRequest, userId), request));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -41,7 +41,7 @@ public class TaskController {
         try {
             return Result.success(taskService.updateTask(resolveUserId(servletRequest, userId), request));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -54,7 +54,7 @@ public class TaskController {
             taskService.deleteTask(resolveUserId(servletRequest, userId), taskId);
             return Result.success();
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -66,7 +66,7 @@ public class TaskController {
         try {
             return Result.success(taskService.listTasks(resolveUserId(servletRequest, userId), skillId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -78,7 +78,7 @@ public class TaskController {
         try {
             return Result.success(taskService.completeTask(resolveUserId(servletRequest, userId), taskId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 

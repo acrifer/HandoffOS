@@ -35,7 +35,7 @@ public class KnowledgeGraphController {
             Map<String, Object> graph = knowledgeGraphService.getKnowledgeGraph(skillId);
             return Result.success(graph);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -50,7 +50,7 @@ public class KnowledgeGraphController {
             Map<String, Object> graph = knowledgeGraphService.getKnowledgeGraph(skillId);
             return Result.success(graph);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -63,7 +63,7 @@ public class KnowledgeGraphController {
             List<ConflictResult> conflicts = conflictDetectionService.detectConflicts(sources);
             return Result.success(conflicts);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 }

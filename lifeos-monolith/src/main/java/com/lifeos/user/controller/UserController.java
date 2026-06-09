@@ -27,7 +27,7 @@ public class UserController {
             response.setEmail(user.getEmail());
             return Result.success(response);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -46,7 +46,7 @@ public class UserController {
             response.setEmail(user.getEmail());
             return Result.success(response);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 

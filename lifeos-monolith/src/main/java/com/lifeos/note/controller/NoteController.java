@@ -35,7 +35,7 @@ public class NoteController {
         try {
             return Result.success(noteService.createNote(resolveUserId(servletRequest, userId), request));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -49,7 +49,7 @@ public class NoteController {
         try {
             return Result.success(noteService.updateNote(resolveUserId(servletRequest, userId), noteId, request));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -63,7 +63,7 @@ public class NoteController {
             noteService.deleteNote(resolveUserId(servletRequest, userId), noteId);
             return Result.success();
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -76,7 +76,7 @@ public class NoteController {
         try {
             return Result.success(noteService.getNote(resolveUserId(servletRequest, userId), noteId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -90,7 +90,7 @@ public class NoteController {
         try {
             return Result.success(noteService.listNotes(resolveUserId(servletRequest, userId), page, size));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -105,7 +105,7 @@ public class NoteController {
         try {
             return Result.success(noteService.searchNotes(resolveUserId(servletRequest, userId), keyword, page, size));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 

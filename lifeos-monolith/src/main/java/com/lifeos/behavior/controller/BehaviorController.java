@@ -44,7 +44,7 @@ public class BehaviorController {
             data.put("recentTrend", recentTrend(notes));
             return Result.success(data);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 

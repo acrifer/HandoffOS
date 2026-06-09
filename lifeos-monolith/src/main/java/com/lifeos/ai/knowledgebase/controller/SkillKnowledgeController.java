@@ -31,7 +31,7 @@ public class SkillKnowledgeController {
         try {
             return Result.success(aiKnowledgeService.createDocument(resolveUserId(servletRequest, userId), skillId, body));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -43,7 +43,7 @@ public class SkillKnowledgeController {
         try {
             return Result.success(aiKnowledgeService.listDocuments(resolveUserId(servletRequest, userId), skillId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -62,7 +62,7 @@ public class SkillKnowledgeController {
                     body == null ? new ParseDocumentRequest() : body
             ));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -81,7 +81,7 @@ public class SkillKnowledgeController {
                     body == null ? new VectorizeDocumentRequest() : body
             ));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -93,7 +93,7 @@ public class SkillKnowledgeController {
         try {
             return Result.success(aiKnowledgeService.summarizeSkill(resolveUserId(servletRequest, userId), skillId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -106,7 +106,7 @@ public class SkillKnowledgeController {
         try {
             return Result.success(aiKnowledgeService.ask(resolveUserId(servletRequest, userId), skillId, body));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -130,7 +130,7 @@ public class SkillKnowledgeController {
         try {
             return Result.success(aiKnowledgeService.history(resolveUserId(servletRequest, userId), skillId, page, size, status));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -144,7 +144,7 @@ public class SkillKnowledgeController {
         try {
             return Result.success(aiKnowledgeService.search(resolveUserId(servletRequest, userId), skillId, query, limit));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -156,7 +156,7 @@ public class SkillKnowledgeController {
         try {
             return Result.success(aiKnowledgeService.recommendedQuestions(resolveUserId(servletRequest, userId), skillId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 

@@ -25,7 +25,7 @@ public class AdminAiController {
         try {
             return Result.success(aiKnowledgeService.adminStats(start, end, skillId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -34,7 +34,7 @@ public class AdminAiController {
         try {
             return Result.success(aiKnowledgeService.analyzeLogs(body == null ? new LogAnalysisRequest() : body));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 }

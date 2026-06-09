@@ -28,7 +28,7 @@ public class FeishuBotController {
         try {
             return Result.success(bindingService.status());
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -40,7 +40,7 @@ public class FeishuBotController {
         try {
             return Result.success(bindingService.bind(resolveUserId(servletRequest, userId), request));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -52,7 +52,7 @@ public class FeishuBotController {
         try {
             return Result.success(bindingService.listBindings(resolveUserId(servletRequest, userId), skillId));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -65,7 +65,7 @@ public class FeishuBotController {
             bindingService.disable(resolveUserId(servletRequest, userId), bindingId);
             return Result.success();
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -78,7 +78,7 @@ public class FeishuBotController {
         try {
             return Result.success(bindingService.listEvents(resolveUserId(servletRequest, userId), skillId, limit));
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 

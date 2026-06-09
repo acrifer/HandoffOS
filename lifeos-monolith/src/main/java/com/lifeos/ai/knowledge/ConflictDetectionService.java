@@ -3,6 +3,8 @@ package com.lifeos.ai.knowledge;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lifeos.config.AiProperties;
+import com.lifeos.demo.exception.ApiException;
+import com.lifeos.demo.service.DemoDeviceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -23,6 +25,7 @@ import java.util.*;
 public class ConflictDetectionService {
 
     private final AiProperties aiProperties;
+    private final DemoDeviceService demoDeviceService;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -33,6 +36,10 @@ public class ConflictDetectionService {
         if (sources.size() < 2) {
             return new ArrayList<>();
         }
+        long estimatedTokens = sources.stream()
+                .mapToLong(source -> demoDeviceService.estimateTokens(source.getSourceType(), source.getContent(), source.getSourceId()))
+                .sum();
+        demoDeviceService.requireAvailable(null, "CONFLICT_DETECT", Math.max(1L, estimatedTokens));
 
         if (!aiProperties.hasApiKey()) {
             throw new IllegalStateException("AI API key is not configured");
@@ -41,9 +48,15 @@ public class ConflictDetectionService {
         try {
             String prompt = buildConflictDetectionPrompt(sources);
             String response = callLLM(prompt);
-            return parseConflicts(response);
+            List<ConflictResult> result = parseConflicts(response);
+            demoDeviceService.recordUsage(null, null, "SELF_LLM", "CONFLICT_DETECT",
+                    estimatedTokens, demoDeviceService.estimateTokens(response), true, null, "SUCCESS");
+            return result;
 
         } catch (Exception e) {
+            if (e instanceof ApiException) {
+                throw (ApiException) e;
+            }
             log.error("Failed to detect conflicts via LLM: {}", e.getMessage());
             throw new IllegalStateException("Failed to detect conflicts via LLM: " + e.getMessage(), e);
         }

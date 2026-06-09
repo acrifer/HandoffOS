@@ -29,7 +29,7 @@ public class InsightController {
             InsightReport report = insightEngine.generateWeeklyReport(userId);
             return Result.success(report);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 
@@ -41,7 +41,7 @@ public class InsightController {
             InsightReport report = insightEngine.generateMonthlyReport(userId);
             return Result.success(report);
         } catch (Exception e) {
-            return Result.error(e.getMessage());
+            return Result.error(e);
         }
     }
 }

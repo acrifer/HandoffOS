@@ -1,5 +1,6 @@
 import axios from 'axios'
 import router from '../router'
+import { clearDeviceToken, getDeviceToken } from '@/utils/deviceAuth'
 
 // Create an axios instance
 const service = axios.create({
@@ -11,9 +12,13 @@ const service = axios.create({
 service.interceptors.request.use(
     config => {
         // Add token to headers if it exists
-        const token = localStorage.getItem('lifeos_token')
+        const token = getDeviceToken()
         if (token) {
             config.headers['Authorization'] = 'Bearer ' + token
+        }
+        const adminKey = localStorage.getItem('handoff_admin_key')
+        if (adminKey && config.url?.startsWith('/admin/quota')) {
+            config.headers['X-Admin-Key'] = adminKey
         }
         return config
     },
@@ -35,7 +40,7 @@ service.interceptors.response.use(
             // 401: Unauthorized
             if (res.code === 401) {
                 // to re-login
-                localStorage.removeItem('lifeos_token')
+                clearDeviceToken()
                 router.push('/login')
             }
             return Promise.reject(new Error(res.message || 'Error'))
@@ -46,7 +51,7 @@ service.interceptors.response.use(
     error => {
         console.error('err' + error) // for debug
         if (error.response && error.response.status === 401) {
-            localStorage.removeItem('lifeos_token')
+            clearDeviceToken()
             router.push('/login')
         }
         return Promise.reject(error)
